@@ -1,0 +1,12 @@
+name: BiblioScience_Diinf
+title: BiblioScience_Diinf
+username: mvillalobos
+account: mvillalobos
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10988381
+bundleId: 10270395
+url: https://mvillalobos.shinyapps.io/BiblioScience_Diinf/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

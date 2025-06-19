@@ -1,0 +1,130 @@
+/*==============================
+  ESTRUCTURA GENERAL
+==============================*/
+body {
+  background-color: #f0f0f0;
+  text-align: justify;
+}
+
+.fixed-top-row {
+  background-color: white; /* Esto asegura que el fondo no sea transparente */
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 100;
+}
+
+h2 {
+  font-family: 'Bahnschrift SemiLight Condensed', Calibri, sans-serif;
+  font-size: 2.00rem;
+  font-weight: 500;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.title-part {
+  color: rgb(0, 164, 153);
+}
+
+.version-part {
+  color: rgb(57, 64, 73, 0.7);
+  margin-left: 10px;
+}
+
+/*==============================
+  COMPONENTES VISUALES
+==============================*/
+.green-background {
+  background-color: rgba(0, 164, 153, 0.1);
+  border: 1px solid rgba(0, 164, 153, 0.3);
+  border-radius: 10px;
+  margin-left: 6%;
+  padding: 0px;
+}
+
+.red-background {
+  background-color: rgba(200, 16,46, 0.1);
+  border: 1px solid rgba(200, 16,46, 0.3);
+  border-radius: 10px;
+  margin-left: 6%;
+  padding: 0px;
+}
+
+.white-background {
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Borde sombreado */
+  padding: 20px;
+}
+
+/*==============================
+  BOTONES Y CONTROLES
+==============================*/
+.custom-button {
+  background-color: black;
+  border: 1px solid black;
+  border-color: white;
+}
+
+#boton_ayuda1, #boton_ayuda2, #boton_ayuda3, #boton_ayuda4, #boton_ayuda5,
+#boton_ayuda6, #boton_ayuda7, #boton_ayuda8, #boton_ayuda9, #boton_ayuda10,
+#boton_ayuda11, #boton_ayuda12, #boton_ayuda13, #boton_ayuda14, #boton_ayuda15,
+#boton_ayuda16, #boton_ayuda17, #boton_ayuda18, #boton_ayuda19, #boton_ayuda20,
+#boton_ayuda21, #boton_ayuda22, #boton_ayuda23, #boton_ayuda24, #boton_ayuda25,
+#boton_ayuda26, #boton_ayuda27, #boton_ayuda28, #boton_ayuda29, #boton_ayuda30 {
+  background-color: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+/*==============================
+  ESTILO PIE DE PÁGINA
+==============================*/
+.footer-text {
+  background-color: rgba(0, 164, 153, 0.1); /* Color de fondo opcional */
+  bottom: 0;
+  color: black;
+  left: 0;
+  padding: 10px;
+  position: fixed;
+  text-align: center;
+  width: 100%;
+}
+
+/*==============================
+  ESTILO SWEETALERT
+==============================*/
+.swal-modal {
+  width: 700px;
+}
+
+/*==============================
+  SLIDERS
+==============================*/
+.js-irs-0 .irs-bar,
+.js-irs-0 .irs-bar-edge,
+.js-irs-0 .irs-slider {
+  background: rgb(0, 164, 153);
+}
+
+/*==============================
+  TABS
+==============================*/
+.nav.nav-tabs {
+  background-color: rgb(57, 64, 73, 0.02); /* Cambia el color de fondo de las pestañas */
+  width: 100%;
+}
+
+.nav.nav-tabs > li > a {
+  color: rgb(0, 164, 153); /* Cambia el color del texto de las pestañas */
+}
+
+/*==============================
+  OTROS LAYOUTS
+==============================*/
+.top-aligned-row {
+  align-items: start;
+  display: flex;
+}
