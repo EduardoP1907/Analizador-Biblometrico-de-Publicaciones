@@ -41,3 +41,13 @@ library(stringdist,warn.conflicts = FALSE)
 library(textrank,warn.conflicts = FALSE)
 library(markdown,warn.conflicts = FALSE)
 library(reticulate,warn.conflicts = FALSE)
+library(httr,warn.conflicts = FALSE)
+library(jsonlite,warn.conflicts = FALSE)
+
+# Paquetes opcionales para NLP avanzado (se cargan condicionalmente)
+if(requireNamespace("text", quietly = TRUE)) {
+  library(text, warn.conflicts = FALSE)
+}
+if(requireNamespace("RcppHunspell", quietly = TRUE)) {
+  library(RcppHunspell, warn.conflicts = FALSE)
+}

@@ -11,6 +11,7 @@ source("www/SOURCE/UI/tab_indicadores.R")
 source("www/SOURCE/UI/tab_perfiles.R")
 source("www/SOURCE/UI/tab_analisis_dominio.R")
 source("www/SOURCE/UI/tab_busqueda.R")
+source("www/SOURCE/UI/tab_evaluacion.R")
 
 #--------------------------------------------------
 # A) Interfaz principal
@@ -100,7 +101,8 @@ ui <- fluidPage(
                                  tab_indicadores,
                                  tab_perfiles,
                                  tab_analisis_dominio,
-                                 tab_busqueda
+                                 tab_busqueda,
+                                 tab_evaluacion
                      ),
                      br(), br(), br()
               )
