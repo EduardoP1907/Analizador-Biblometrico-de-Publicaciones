@@ -79,22 +79,6 @@ server <- function(input, output, session) {  # <- INICIO de la función server
     }  # <- FIN if hay datos
   })  # <- FIN observeEvent sección
   
-  # #--- 3. Cambio de Año ----------------------------------------------------------
-  # observeEvent(input$SIn_Periodo, {  # <- INICIO observeEvent periodo
-  #   datos <- datos_globales()
-  #   datos_filtrados <- datos %>%
-  #     filter(UNIVERSIDAD == input$SIn_Universidad,
-  #            SESION == input$SIn_Seccion,
-  #            ANO >= as.integer(input$SIn_Periodo[1]),
-  #            ANO <= as.integer(input$SIn_Periodo[2]))
-  #   output$In_perfil_variable <- renderUI({  # <- INICIO renderUI selector de autor
-  #     selectInput("SIn_Perfil_autores", "Seleccione un(a) académico(a)",
-  #                 choices = unique(datos_filtrados$NOMBRE_AUTOR),
-  #                 selected = isolate(input$SIn_Perfil_autores),
-  #                 width = "80%")
-  #   })  # <- FIN renderUI selector de autor
-  # })  # <- FIN observeEvent periodo
-  
   #--- 4. Cambio de Tab Principal ------------------------------------------------
   observeEvent(input$tabs_principales, {  # <- INICIO observeEvent tabs
     cat("El usuario cambió a la pestaña:", input$tabs_principales, "\n")
