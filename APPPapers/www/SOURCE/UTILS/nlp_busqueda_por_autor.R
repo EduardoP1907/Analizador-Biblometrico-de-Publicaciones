@@ -202,31 +202,26 @@ extraer_filtro_autor <- function(query) {
     }
   }
 
-  # Patrones con prefijo explícito de autor
+  # Adverbios de exclusividad que pueden insertarse entre el sustantivo y "de"/"by"
+  # (ej. "papers EXCLUSIVAMENTE de García", "papers ONLY by García")
+  .ADV_ES <- "(?:exclusivamente\\s+|solamente\\s+|únicamente\\s+|unicamente\\s+|s[oó]lo\\s+)?"
+  .ADV_EN <- "(?:only\\s+|exclusively\\s+|solely\\s+)?"
+
+  # Patrones con prefijo explícito de autor (grupo de captura 1 = nombre)
   patrones <- list(
-    list(re = "(?:todos\\s+los\\s+)?(?:publicaciones|papers|art[ií]culos|trabajos|investigaciones|estudios)\\s+de\\s+([^,\\.]+)",
-         prefijos = c("publicaciones de","papers de","artículos de","articulos de",
-                      "trabajos de","investigaciones de","estudios de",
-                      "todos los papers de","todos los publicaciones de")),
-    list(re = "(?:papers|publications|articles|works|research)\\s+by\\s+([^,\\.]+)",
-         prefijos = c("papers by","publications by","articles by","works by","research by")),
-    list(re = "(?:del?\\s+)?(?:autor|investigador|profesor|academico)\\s+([^,\\.]+)",
-         prefijos = c("del autor","del investigador","del profesor","autor","investigador","profesor")),
-    list(re = "(?:authored|written)\\s+by\\s+([^,\\.]+)",
-         prefijos = c("authored by","written by")),
-    list(re = "dra?\\.?\\s+([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+)+)",
-         prefijos = c("dr.","dr","dra.","dra"))
+    list(re = paste0("(?:todos\\s+los\\s+)?(?:publicaciones|papers|art[ií]culos|trabajos|investigaciones|estudios)\\s+",
+                      .ADV_ES, "de\\s+([^,\\.]+)")),
+    list(re = paste0("(?:papers|publications|articles|works|research)\\s+", .ADV_EN, "by\\s+([^,\\.]+)")),
+    list(re = paste0("(?:del?\\s+)?(?:autor|investigador|profesor|academico)\\s+", .ADV_ES, "([^,\\.]+)")),
+    list(re = paste0("(?:authored|written)\\s+", .ADV_EN, "by\\s+([^,\\.]+)")),
+    list(re = "dra?\\.?\\s+([a-záéíóúñ]+(?:\\s+[a-záéíóúñ]+)+)")
   )
 
   for (p in patrones) {
-    m <- regexpr(p$re, q_lower, perl = TRUE, ignore.case = TRUE)
-    if (m != -1) {
-      capturado <- trimws(regmatches(q_lower, m))
-      # Limpiar prefijo
-      nombre <- capturado
-      for (pref in p$prefijos) {
-        nombre <- gsub(paste0("^", pref, "\\s*"), "", nombre, ignore.case = TRUE)
-      }
+    m <- regexec(p$re, q_lower, perl = TRUE, ignore.case = TRUE)
+    grupos <- regmatches(q_lower, m)[[1]]
+    if (length(grupos) >= 2) {
+      nombre <- trimws(grupos[2])
       nombre <- trimws(gsub("[,\\.;:]+$", "", nombre))
       if (nchar(nombre) >= 3 && .es_nombre_persona(nombre)) {
         # Remover el fragmento de autor de la query para dejar solo el tema
@@ -273,7 +268,9 @@ parsear_filtros_query <- function(query) {
                         "todos","todas","los","las","el","la","un","una",
                         "papers","publicaciones","articulos","trabajos","estudios",
                         "investigaciones","de","del","por","en","con","sin",
-                        "mas","recientes","ultimos","nuevos","sobre","acerca")
+                        "mas","recientes","ultimos","nuevos","sobre","acerca",
+                        "exclusivamente","solamente","unicamente","solo","only",
+                        "exclusively","solely")
   tokens_tema <- unlist(strsplit(tolower(q_tema), "\\s+"))
   tokens_tema <- tokens_tema[nchar(tokens_tema) >= 3 & !tokens_tema %in% stop_instruccion]
   terminos_tema <- paste(unique(tokens_tema), collapse = " ")
