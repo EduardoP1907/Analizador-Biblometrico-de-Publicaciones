@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Datos y bases de datos
+*.csv
+*.npy
+APPPapers/SUPPORTING_CODES/BD/
+APPPapers/www/BD/
+
+# Documentos personales / informes
+*.docx

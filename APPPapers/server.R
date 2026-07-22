@@ -16,6 +16,7 @@ server <- function(input, output, session) {  # <- INICIO de la función server
   source("www/SOURCE/SERVER/server_tab_analisis_dominio.R")     # <- Carga lógica del panel de dominio
   source("SUPPORTING_CODES/014_buscar_palabra_archivos.R")
   source("www/SOURCE/SERVER/server_tab_busqueda.R")
+  source("www/SOURCE/SERVER/server_tab_evaluacion.R")
 
   
   
@@ -204,6 +205,7 @@ server <- function(input, output, session) {  # <- INICIO de la función server
   remove_modal_spinner()  # <- Cierra el spinner inicial de carga
 
   server_tab_busqueda(input, output, session, datos)
+  server_tab_evaluacion(input, output, session, datos)
 
 }  # <- FIN de la función server
 
