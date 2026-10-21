@@ -222,11 +222,17 @@ extraer_filtro_autor <- function(query) {
     grupos <- regmatches(q_lower, m)[[1]]
     if (length(grupos) >= 2) {
       nombre <- trimws(grupos[2])
+      # El nombre termina donde empieza el tema: "papers de García sobre ML"
+      nombre <- sub("\\s+(sobre|acerca\\s+de|referente\\s+a|relacionad[oa]s?\\s+con|about|on|regarding)\\s+.*$",
+                    "", nombre, perl = TRUE)
       nombre <- trimws(gsub("[,\\.;:]+$", "", nombre))
       if (nchar(nombre) >= 3 && .es_nombre_persona(nombre)) {
-        # Remover el fragmento de autor de la query para dejar solo el tema
-        q_sin <- trimws(gsub(p$re, "", query, perl = TRUE, ignore.case = TRUE))
-        q_sin <- trimws(gsub("\\s+", " ", q_sin))
+        # Remover el prefijo y el nombre del autor de la query para dejar solo el tema
+        q_trim <- trimws(query)
+        ini    <- m[[1]][1]
+        fin    <- m[[1]][2] + nchar(nombre) - 1   # m[[1]][2] = inicio del grupo 1
+        q_sin  <- paste(substr(q_trim, 1, ini - 1), substr(q_trim, fin + 1, nchar(q_trim)))
+        q_sin  <- trimws(gsub("\\s+", " ", q_sin))
         return(list(tiene = TRUE, nombre = nombre, query_sin_autor = q_sin))
       }
     }

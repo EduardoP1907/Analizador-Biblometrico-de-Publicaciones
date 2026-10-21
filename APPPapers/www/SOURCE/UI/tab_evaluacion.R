@@ -13,7 +13,7 @@ tab_evaluacion <- tabPanel(
           style = "margin: 0; font-weight: 600;"
         ),
         p(
-          "Comparación de Precisión, Recall y F1-Score: Búsqueda exacta (Baseline) vs Sistema NLP",
+          "Comparación de Precisión, Recall y F1-Score: Búsqueda exacta (Baseline), Búsqueda difusa y Sistema híbrido",
           style = "margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;"
         )
       )
@@ -72,9 +72,10 @@ tab_evaluacion <- tabPanel(
             div(
               style = "font-size: 13px; color: #555;",
               tags$strong("Ground truth: "),
-              "15 consultas temáticas sobre el corpus de 3.914 papers de la USACH ",
-              "(WoS + Scopus). Para cada consulta se identificaron manualmente los papers ",
-              "relevantes. El sistema evalúa cuántos puede recuperar cada motor de búsqueda."
+              "15 consultas temáticas sobre las 3.596 publicaciones que recibe el módulo de búsqueda ",
+              "(USACH y UTFSM, WoS + Scopus). Los papers relevantes de cada consulta se juzgaron con un ",
+              "criterio escrito sobre candidatos agrupados desde varios sistemas (pooling). ",
+              "El sistema evalúa cuántos puede recuperar cada motor de búsqueda."
             )
           ),
           column(4,

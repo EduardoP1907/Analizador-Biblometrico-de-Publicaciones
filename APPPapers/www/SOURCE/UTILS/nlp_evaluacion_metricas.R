@@ -1,6 +1,9 @@
 #=======================================================================
 # MÓDULO DE EVALUACIÓN: Precisión, Recall y F1-Score
-# Compara sistema NLP vs búsqueda exacta (baseline)
+# Compara tres configuraciones sobre las consultas del ground truth:
+#   - Baseline (exacto): coincidencia exacta de palabras clave
+#   - Búsqueda difusa: componente agrep aislado, sin tope de resultados
+#   - Sistema híbrido: el mismo pipeline que usa la app (buscar_papers_hibrido)
 #=======================================================================
 
 library(stringi, warn.conflicts = FALSE)
@@ -31,25 +34,36 @@ titulo_coincide <- function(titulo_recuperado, titulos_gt) {
   # 1. Coincidencia exacta normalizada
   if (t_norm %in% gt_norm) return(TRUE)
 
-  # 2. Coincidencia difusa (Levenshtein ≤ 10% del largo, min 5 chars)
+  # 2. Coincidencia difusa (Levenshtein ≤ 10% del largo del título)
   if (nchar(t_norm) == 0) return(FALSE)
-  umbral <- max(5L, as.integer(floor(nchar(t_norm) * 0.10)))
+  umbral <- as.integer(floor(nchar(t_norm) * 0.10))
   dists  <- adist(t_norm, gt_norm)
   any(dists <= umbral, na.rm = TRUE)
 }
 
-# TP = número de papers del GT cubiertos por al menos un paper recuperado.
-# (Vectorizado sobre GT: adist() compara 1 string contra todos los recuperados)
+# TP = pares (recuperado, relevante) emparejados uno a uno: primero las
+# coincidencias exactas normalizadas y luego las aproximadas (Levenshtein ≤ 10%
+# del largo). Así TP nunca supera ni a los recuperados ni a los relevantes.
 calcular_tp <- function(titulos_recuperados, titulos_gt) {
   if (length(titulos_recuperados) == 0 || length(titulos_gt) == 0) return(0L)
-  rec_norm <- vapply(titulos_recuperados, normalizar_titulo, character(1L))
-  as.integer(sum(vapply(titulos_gt, function(gt) {
-    gt_n <- normalizar_titulo(gt)
-    if (gt_n == "") return(FALSE)
-    if (gt_n %in% rec_norm) return(TRUE)
-    umbral <- max(5L, as.integer(floor(nchar(gt_n) * 0.10)))
-    any(adist(gt_n, rec_norm) <= umbral, na.rm = TRUE)
-  }, logical(1L))))
+  rec_norm <- unname(vapply(titulos_recuperados, normalizar_titulo, character(1L)))
+  gt_norm  <- unname(vapply(titulos_gt, normalizar_titulo, character(1L)))
+  rec_libre <- rec_norm != ""
+  gt_pend   <- which(gt_norm != "")
+  tp <- 0L
+
+  for (g in gt_pend) {
+    j <- which(rec_libre & rec_norm == gt_norm[g])[1]
+    if (!is.na(j)) { rec_libre[j] <- FALSE; tp <- tp + 1L; gt_pend <- setdiff(gt_pend, g) }
+  }
+  for (g in gt_pend) {
+    if (!any(rec_libre)) break
+    libres <- which(rec_libre)
+    d <- adist(gt_norm[g], rec_norm[libres])[1, ]
+    k <- which.min(d)
+    if (d[k] <= floor(nchar(gt_norm[g]) * 0.10)) { rec_libre[libres[k]] <- FALSE; tp <- tp + 1L }
+  }
+  tp
 }
 
 calcular_precision <- function(titulos_recuperados, titulos_gt) {
@@ -108,6 +122,10 @@ busqueda_baseline <- function(query, data) {
 
 `%||%` <- function(a, b) if (!is.null(a) && length(a) > 0) a else b
 
+SISTEMA_BASELINE <- "Baseline (exacto)"
+SISTEMA_DIFUSA   <- "Búsqueda difusa"
+SISTEMA_HIBRIDO  <- "Sistema híbrido"
+
 # ── 3. EVALUACIÓN COMPLETA ───────────────────────────────────────────────────
 
 cargar_ground_truth <- function(path = "www/BD/ground_truth_evaluacion.csv") {
@@ -135,6 +153,8 @@ evaluar_query <- function(query, titulos_gt, titulos_rec) {
 
   titulos_rec <- as.character(unlist(titulos_rec))
   titulos_rec <- titulos_rec[!is.na(titulos_rec) & nchar(trimws(titulos_rec)) > 0]
+  # Una publicación repetida en el corpus cuenta una sola vez como recuperada
+  titulos_rec <- titulos_rec[!duplicated(vapply(titulos_rec, normalizar_titulo, character(1L)))]
 
   tp <- calcular_tp(titulos_rec, titulos_gt)
   p  <- if (length(titulos_rec) == 0) 0 else tp / length(titulos_rec)
@@ -171,27 +191,31 @@ ejecutar_evaluacion_completa <- function(data, verbose = TRUE) {
       }
     )
     eval_base         <- evaluar_query(query, titulos_gt, rec_base)
-    eval_base$sistema <- "Baseline (exacto)"
+    eval_base$sistema <- SISTEMA_BASELINE
 
-    # ── Sistema NLP: búsqueda ligera (sin síntesis ni análisis temporal) ────
-    # Se usa busqueda_nlp_ligera() que combina:
-    #   1. Embeddings vectoriales (si están cargados)  — muy rápido
-    #   2. Expansión de sinónimos académicos + agrep   — rápido
-    # No se llama al motor completo (proceso_nlp_chatbot_semantico) porque
-    # ese genera resúmenes y análisis temporales que no son necesarios aquí
-    # y tardan varios minutos por consulta.
-    rec_nlp <- tryCatch(
-      busqueda_nlp_ligera(query, data),
+    # ── Búsqueda difusa: componente agrep aislado ───────────────────────────
+    rec_dif <- tryCatch(
+      busqueda_difusa_simple(query, data),
       error = function(e) {
-        if (verbose) cat("    ⚠️  NLP error:", conditionMessage(e), "\n")
+        if (verbose) cat("    ⚠️  Difusa error:", conditionMessage(e), "\n")
         character(0)
       }
     )
+    eval_dif         <- evaluar_query(query, titulos_gt, rec_dif)
+    eval_dif$sistema <- SISTEMA_DIFUSA
 
-    eval_nlp         <- evaluar_query(query, titulos_gt, rec_nlp)
-    eval_nlp$sistema <- "Sistema NLP"
+    # ── Sistema híbrido: recuperación de la app, sin resumen ni análisis ────
+    rec_hib <- tryCatch(
+      busqueda_hibrida_eval(query, data),
+      error = function(e) {
+        if (verbose) cat("    ⚠️  Híbrido error:", conditionMessage(e), "\n")
+        character(0)
+      }
+    )
+    eval_hib         <- evaluar_query(query, titulos_gt, rec_hib)
+    eval_hib$sistema <- SISTEMA_HIBRIDO
 
-    list(baseline = eval_base, nlp = eval_nlp)
+    list(baseline = eval_base, difusa = eval_dif, hibrido = eval_hib)
   })
 
   # Construir data frames asegurando que cada fila tiene exactamente los mismos campos
@@ -211,9 +235,9 @@ ejecutar_evaluacion_completa <- function(data, verbose = TRUE) {
     }))
   }
 
-  df_base <- lista_a_df(lapply(resultados, `[[`, "baseline"))
-  df_nlp  <- lista_a_df(lapply(resultados, `[[`, "nlp"))
-  df_all  <- rbind(df_base, df_nlp)
+  df_all <- do.call(rbind, lapply(c("baseline", "difusa", "hibrido"), function(k) {
+    lista_a_df(lapply(resultados, `[[`, k))
+  }))
 
   resumen <- df_all %>%
     group_by(sistema) %>%
@@ -223,7 +247,8 @@ ejecutar_evaluacion_completa <- function(data, verbose = TRUE) {
       f1_macro        = round(mean(f1,        na.rm = TRUE), 4),
       n_queries       = n(),
       .groups = "drop"
-    )
+    ) %>%
+    arrange(match(sistema, c(SISTEMA_BASELINE, SISTEMA_DIFUSA, SISTEMA_HIBRIDO)))
 
   list(detalle = df_all, resumen = resumen, ground_truth = gt)
 }
@@ -255,20 +280,23 @@ busqueda_difusa_simple <- function(query, data) {
   titulos[!is.na(titulos)]
 }
 
-# ── 5. BÚSQUEDA NLP LIGERA (para evaluación batch — sin síntesis ni temporal) ──
+# ── 5. SISTEMA HÍBRIDO (para evaluación batch — sin síntesis ni temporal) ────
 #
-# Combina:
-#   a) Embeddings vectoriales si están cargados (buscar_por_embeddings)
-#   b) Expansión de sinónimos académicos (expandir_consulta_semantica)
-#      + búsqueda difusa (agrep) en TITULO, AUTOR_PALABRAS_CLAVES e INDEX_PALABRAS_CLAVES
-#
-# No ejecuta resúmenes LexRank ni análisis temporal para que sea rápida.
+# Ejecuta la misma recuperación que proceso_nlp_chatbot_semantico():
+# parseo de filtros → expansión de sinónimos → buscar_papers_hibrido()
+# (embeddings + difusa + sinónimos, umbral y top-k). Omite el resumen LexRank
+# y el análisis temporal porque no influyen en qué documentos se recuperan.
 
-busqueda_nlp_ligera <- function(query, data) {
-  # Búsqueda difusa pura: agrep (Levenshtein) sobre título + palabras clave.
-  # Sin dependencias externas (no Python, no sinónimos, no sesión Shiny).
-  # Diferencia clave vs baseline: tolerancia a variantes morfológicas y errores.
-  busqueda_difusa_simple(query, data)
+busqueda_hibrida_eval <- function(query, data) {
+  if (!exists("buscar_papers_hibrido", mode = "function")) {
+    stop("Motor semántico no cargado (nlp_chatbot_engine_semantic.R)")
+  }
+  filtros   <- parsear_filtros_query(query)
+  q_tema    <- if (nchar(trimws(filtros$terminos_tema)) >= 3) filtros$terminos_tema else query
+  expansion <- expandir_consulta_semantica(q_tema)
+  papers    <- buscar_papers_hibrido(q_tema, data, expansion)
+  if (nrow(papers) == 0) return(character(0))
+  as.character(papers$TITULO)
 }
 
 # ── 6. FORMATEO DE RESULTADOS ────────────────────────────────────────────────
@@ -276,13 +304,13 @@ busqueda_nlp_ligera <- function(query, data) {
 generar_tabla_evaluacion_html <- function(evaluacion) {
   resumen <- evaluacion$resumen
 
-  f1_base <- resumen$f1_macro[resumen$sistema == "Baseline (exacto)"]
-  f1_nlp  <- resumen$f1_macro[resumen$sistema == "Sistema NLP"]
+  f1_base <- resumen$f1_macro[resumen$sistema == SISTEMA_BASELINE]
+  f1_hib  <- resumen$f1_macro[resumen$sistema == SISTEMA_HIBRIDO]
   mejora  <- if (length(f1_base) > 0 && f1_base > 0)
-    round((f1_nlp - f1_base) / f1_base * 100, 1) else 0
+    round((f1_hib - f1_base) / f1_base * 100, 1) else 0
 
   tagList(
-    tags$h5("📊 Resumen de evaluación — 15 consultas",
+    tags$h5(sprintf("📊 Resumen de evaluación — %d consultas", max(resumen$n_queries)),
             style = "color:#1a237e; margin-bottom:15px;"),
 
     tags$table(
@@ -299,9 +327,9 @@ generar_tabla_evaluacion_html <- function(evaluacion) {
       ),
       tags$tbody(
         lapply(seq_len(nrow(resumen)), function(i) {
-          es_nlp <- grepl("NLP", resumen$sistema[i])
+          es_hib <- resumen$sistema[i] == SISTEMA_HIBRIDO
           tags$tr(
-            style = if (es_nlp) "background:#e8f5e9; font-weight:bold;" else "",
+            style = if (es_hib) "background:#e8f5e9; font-weight:bold;" else "",
             tags$td(resumen$sistema[i]),
             tags$td(sprintf("%.4f", resumen$precision_macro[i])),
             tags$td(sprintf("%.4f", resumen$recall_macro[i])),
@@ -314,12 +342,13 @@ generar_tabla_evaluacion_html <- function(evaluacion) {
     tags$div(
       style = "background:#fff9c4; border:1px solid #f9a825; border-radius:6px; padding:12px; margin-bottom:20px;",
       tags$strong(
-        sprintf("🏆 Mejora del sistema NLP sobre baseline: %+.1f%% en F1-Score", mejora)
+        sprintf("Variación del F1-Score del sistema híbrido respecto del baseline: %+.1f%%", mejora)
       ),
       tags$br(),
       tags$small(
         style = "color:#666;",
-        "Evaluación macro-promediada sobre 15 consultas con ground truth construido a partir del corpus USACH."
+        "Evaluación macro-promediada sobre las consultas del ground truth (www/BD/ground_truth_evaluacion.csv). ",
+        "La búsqueda difusa se reporta como componente aislado, sin tope de resultados."
       )
     )
   )
@@ -327,23 +356,9 @@ generar_tabla_evaluacion_html <- function(evaluacion) {
 
 generar_reporte_texto <- function(evaluacion) {
   resumen <- evaluacion$resumen
-  f1_base <- resumen$f1_macro[resumen$sistema == "Baseline (exacto)"]
-  f1_nlp  <- resumen$f1_macro[resumen$sistema == "Sistema NLP"]
-  mejora  <- if (length(f1_base) > 0 && f1_base > 0)
-    round((f1_nlp - f1_base) / f1_base * 100, 1) else 0
-
-  p_nlp  <- resumen$precision_macro[resumen$sistema == "Sistema NLP"]
-  r_nlp  <- resumen$recall_macro   [resumen$sistema == "Sistema NLP"]
-  p_base <- resumen$precision_macro[resumen$sistema == "Baseline (exacto)"]
-  r_base <- resumen$recall_macro   [resumen$sistema == "Baseline (exacto)"]
-
-  cat(sprintf(paste(
-    "=== RESULTADOS DE EVALUACIÓN ===\n\n",
-    "Baseline (búsqueda exacta):\n",
-    "  Precisión: %.4f | Recall: %.4f | F1-Score: %.4f\n\n",
-    "Sistema NLP (difusa + semántica):\n",
-    "  Precisión: %.4f | Recall: %.4f | F1-Score: %.4f\n\n",
-    "Mejora F1: %+.1f%%\n\n",
-    "Evaluado sobre 15 consultas con ground truth del corpus USACH (3.914 papers).\n"
-  ), p_base, r_base, f1_base, p_nlp, r_nlp, f1_nlp, mejora))
+  for (i in seq_len(nrow(resumen))) {
+    cat(sprintf("%-20s Precisión: %.4f | Recall: %.4f | F1-Score: %.4f\n",
+                resumen$sistema[i], resumen$precision_macro[i],
+                resumen$recall_macro[i], resumen$f1_macro[i]))
+  }
 }

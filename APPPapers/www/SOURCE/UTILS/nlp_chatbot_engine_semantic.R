@@ -6,7 +6,7 @@
 library(stringi, warn.conflicts = FALSE)
 library(dplyr, warn.conflicts = FALSE)
 
-# Cargar módulos semánticos (keyword search - fallback)
+# Cargar módulos de expansión de sinónimos y scoring híbrido
 source("www/SOURCE/UTILS/nlp_synonyms_academic.R")
 source("www/SOURCE/UTILS/nlp_semantic_scoring.R")
 source("www/SOURCE/UTILS/nlp_temporal_filters.R")
@@ -23,13 +23,13 @@ source("www/SOURCE/UTILS/nlp_busqueda_por_autor.R")
 # Cargar motor de embeddings multilingues
 source("www/SOURCE/UTILS/nlp_embedding_search.R")
 
-#' Motor PLN semántico mejorado - FASE 1
+#' Motor PLN semántico
 #'
-#' Implementa búsqueda semántica avanzada con:
+#' Pipeline de una consulta:
+#' - Parseo de filtros (autor, rango de años) y términos de tema
 #' - Expansión de consultas con sinónimos académicos
-#' - Scoring semántico multi-algoritmo
-#' - Análisis de co-ocurrencia de términos
-#' - Generación de resúmenes estructurados
+#' - Búsqueda híbrida: embeddings + búsqueda difusa + sinónimos (buscar_papers_hibrido)
+#' - Resumen extractivo LexRank y síntesis de abstracts
 #'
 #' @param query Consulta del usuario
 #' @param data Dataset de papers
@@ -135,17 +135,7 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
     )
   }
 
-  papers_encontrados <- NULL
-
-  if (embeddings_listos()) {
-    cat("🧠 [EMBED] Búsqueda por similitud vectorial ES<>EN...\n")
-    papers_encontrados <- buscar_por_embeddings(query = query_busqueda, data = data_filtrada, top_k = 20)
-  }
-
-  if (is.null(papers_encontrados)) {
-    cat("🔑 Búsqueda semántica clásica (fallback)...\n")
-    papers_encontrados <- buscar_papers_semantico_mejorado(query_busqueda, data_filtrada, expansion_result)
-  }
+  papers_encontrados <- buscar_papers_hibrido(query_busqueda, data_filtrada, expansion_result)
 
   if (nrow(papers_encontrados) == 0) {
     msg <- if (filtro_autor$tiene) {
@@ -206,8 +196,12 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
   ))
 }
 
-#' Búsqueda semántica mejorada con múltiples estrategias
-buscar_papers_semantico_mejorado <- function(query, data, expansion_result) {
+#' Búsqueda híbrida: fusión de embeddings, búsqueda difusa y sinónimos
+#'
+#' Calcula score_semantico para todas las publicaciones (calcular_scores_hibridos),
+#' descarta las que no alcanzan UMBRAL_HIBRIDO y devuelve las TOP_K_HIBRIDO mejores.
+#' Si los embeddings no están disponibles opera en modo degradado (solo léxico).
+buscar_papers_hibrido <- function(query, data, expansion_result, top_k = TOP_K_HIBRIDO) {
 
   # Asegurar columnas necesarias
   columnas_requeridas <- c("TITULO", "RESUMEN", "AUTOR_PALABRAS_CLAVES", "NOMBRE_AUTOR", "ANO", "SJR", "CITADO_POR", "LINK")
@@ -217,45 +211,33 @@ buscar_papers_semantico_mejorado <- function(query, data, expansion_result) {
     }
   }
 
-  # Inicializar scores
-  data$score_semantico <- 0
-  data$score_detalles <- ""
+  sims <- if (embeddings_listos()) similitudes_embeddings(query, data) else NULL
+  cat(if (is.null(sims)) "🔑 Búsqueda híbrida en modo degradado (difusa + sinónimos)...
+"
+      else "🧠 Búsqueda híbrida (embeddings + difusa + sinónimos)...
+")
 
-  cat(paste("   📊 Analizando", nrow(data), "papers en la base de datos...\n"))
-
-  # ===== APLICAR SCORING SEMÁNTICO A CADA PAPER =====
-  for(i in 1:nrow(data)) {
-    if(i %% 500 == 0) {  # Progress para datasets grandes
-      cat(paste("      Procesados", i, "papers...\n"))
-    }
-
-    paper_row <- data[i, ]
-    score <- calcular_score_semantico(paper_row, query, expansion_result)
-
-    if(score > 0.1) {  # Threshold mínimo
-      data$score_semantico[i] <- score
-      data$score_detalles[i] <- crear_detalle_scoring(paper_row, query, expansion_result, score)
-    }
-  }
+  scores <- calcular_scores_hibridos(query, data, expansion_result, sims)
+  data <- cbind(data, scores)
 
   # ===== FILTRAR Y ORDENAR RESULTADOS =====
-  papers_relevantes <- data[data$score_semantico > 0.1, ]
+  papers_relevantes <- data[data$score_semantico >= UMBRAL_HIBRIDO, ]
 
   if(nrow(papers_relevantes) == 0) {
     return(data.frame())
   }
 
-  # Ordenar por score semántico
   papers_relevantes <- papers_relevantes[order(papers_relevantes$score_semantico, decreasing = TRUE), ]
+
+  # El corpus repite publicaciones (mismo título en varios registros): se
+  # conserva solo la de mayor puntaje para no mostrarla dos veces
+  clave_titulo <- stri_replace_all_regex(
+    stri_trans_general(tolower(as.character(papers_relevantes$TITULO)), "Latin-ASCII"), "[^a-z0-9]+", " ")
+  papers_relevantes <- papers_relevantes[!duplicated(trimws(clave_titulo)), ]
+  papers_relevantes <- head(papers_relevantes, top_k)
 
   # Normalizar scores para mejor interpretación
   papers_relevantes$score_normalizado <- normalizar_scores(papers_relevantes$score_semantico)
-
-  # Limitar resultados para eficiencia (top 20)
-  if(nrow(papers_relevantes) > 20) {
-    papers_relevantes <- papers_relevantes[1:20, ]
-    cat("   ⚡ Limitando a top 20 resultados más relevantes\n")
-  }
 
   return(papers_relevantes)
 }
@@ -309,17 +291,62 @@ generar_resumen_semantico_mejorado <- function(query, papers_encontrados, expans
 
   parrafo_intro <- mejorar_redaccion_resumen(paste(partes, collapse = " "))
 
-  # 6. Fragmentos clave extraídos directamente de los abstracts (sección nueva)
+  # 6. Resumen extractivo LexRank sobre los abstracts de las primeras publicaciones
+  cat("📝 Generando resumen extractivo (LexRank)...\n")
+  seccion_lexrank <- crear_seccion_lexrank_html(resumen_lexrank(papers_encontrados))
+
+  # 7. Fragmentos clave extraídos directamente de los abstracts
   seccion_contribuciones <- crear_seccion_contribuciones_html(sintesis$contribuciones)
 
-  # Ensamblar: párrafo introductorio + contribuciones por paper
-  if (nchar(seccion_contribuciones) > 0) {
-    resumen_final <- paste0(parrafo_intro, seccion_contribuciones)
-  } else {
-    resumen_final <- parrafo_intro
-  }
+  # Ensamblar: párrafo introductorio + resumen LexRank + contribuciones por paper
+  resumen_final <- paste0(parrafo_intro, seccion_lexrank, seccion_contribuciones)
 
   return(resumen_final)
+}
+
+#' Resumen extractivo LexRank (Erkan & Radev, 2004)
+#'
+#' Aplica LexRank sobre los abstracts (campo RESUMEN) de las primeras
+#' publicaciones del ranking y devuelve las oraciones más centrales.
+#' No interviene en el orden de los resultados.
+#'
+#' @param papers Publicaciones ya ordenadas por score_semantico
+#' @param n_papers Número de publicaciones del ranking que se resumen
+#' @param n_oraciones Máximo de oraciones del resumen
+#' @return Vector character con las oraciones seleccionadas (puede ser vacío)
+resumen_lexrank <- function(papers, n_papers = 5, n_oraciones = 3) {
+  if (!"RESUMEN" %in% colnames(papers) || !requireNamespace("lexRankr", quietly = TRUE)) {
+    return(character(0))
+  }
+
+  abstracts <- as.character(head(papers$RESUMEN, n_papers))
+  abstracts <- abstracts[!is.na(abstracts) & nchar(trimws(abstracts)) > 50]
+  if (length(abstracts) == 0) return(character(0))
+
+  oraciones <- tryCatch({
+    res <- lexRankr::lexRank(abstracts, docId = "create", n = n_oraciones,
+                             continuous = TRUE, Verbose = FALSE)
+    as.character(res$sentence)
+  }, error = function(e) {
+    cat(paste0("⚠️  [LEXRANK] ", conditionMessage(e), "\n"))
+    character(0)
+  })
+
+  head(oraciones, n_oraciones)
+}
+
+#' Genera la sección HTML del resumen extractivo LexRank
+crear_seccion_lexrank_html <- function(oraciones) {
+  if (length(oraciones) == 0) return("")
+
+  items <- paste0("<li style='margin-bottom:6px;'>", htmltools::htmlEscape(oraciones), "</li>")
+
+  paste0(
+    "<br><strong style='color:#343a40;'>Resumen extractivo (LexRank):</strong>",
+    "<ul style='margin-top:6px;padding-left:18px;font-size:13px;color:#495057;'>",
+    paste(items, collapse = ""),
+    "</ul>"
+  )
 }
 
 # ── Síntesis desde los abstracts reales ──────────────────────────────────────
@@ -718,10 +745,6 @@ generar_mensaje_sin_resultados_temporal <- function(query, restricciones_tempora
   } else {
     return(paste0(mensaje_base, ". Intente con términos diferentes o más generales."))
   }
-}
-
-crear_detalle_scoring <- function(paper_row, query, expansion_result, score) {
-  return(paste("Score:", round(score, 2)))
 }
 
 obtener_info_scoring <- function(papers) {

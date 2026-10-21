@@ -4,8 +4,10 @@
 # Alineación: por TITULO (no por índice de fila)
 #=======================================
 
-# Apuntar reticulate al Python de Miniconda
-PYTHON_PATH <- "C:/Users/eduar/miniconda3/python.exe"
+# Apuntar reticulate al Python de Miniconda.
+# La ruta se lee de la variable de entorno APPPAPERS_PYTHON; si no está
+# definida se usa la del equipo de desarrollo.
+PYTHON_PATH <- Sys.getenv("APPPAPERS_PYTHON", "C:/Users/eduar/miniconda3/python.exe")
 if (file.exists(PYTHON_PATH)) {
   tryCatch(
     suppressWarnings(reticulate::use_python(PYTHON_PATH, required = FALSE)),
@@ -27,7 +29,6 @@ if (!exists(".nlp_emb", envir = .GlobalEnv)) {
 EMBEDDING_MODEL <- "paraphrase-multilingual-MiniLM-L12-v2"
 EMBEDDINGS_FILE <- "www/BD/paper_embeddings.npy"
 TITULO_IDX_FILE <- "www/BD/paper_titulo_index.json"
-THRESHOLD_BASE  <- 0.25
 
 # ── Inicialización ────────────────────────────────────────────────────────────
 
@@ -73,18 +74,20 @@ inicializar_embeddings <- function() {
   })
 }
 
-# ── Búsqueda principal ────────────────────────────────────────────────────────
+# ── Similitud por embeddings ─────────────────────────────────────────────────
 
-#' Búsqueda semántica multilingue ES↔EN
+#' Similitud coseno entre la consulta y cada publicación (ES↔EN)
 #'
 #' Alinea cada fila de `data` con su embedding usando el campo TITULO,
 #' lo que es robusto frente a filtros o reordenamientos del dataset.
+#' No filtra ni ordena: entrega un puntaje por fila para que la fusión
+#' híbrida (calcular_scores_hibridos) lo combine con los puntajes léxicos.
 #'
-#' @param query       Consulta en cualquier idioma
-#' @param data        Data frame con los papers (debe tener columna TITULO)
-#' @param top_k       Máximo de resultados
-#' @param threshold   Similitud mínima (0-1)
-buscar_por_embeddings <- function(query, data, top_k = 20, threshold = THRESHOLD_BASE) {
+#' @param query Consulta en cualquier idioma
+#' @param data  Data frame con los papers (debe tener columna TITULO)
+#' @return Vector numérico de largo nrow(data) (NA si la fila no tiene
+#'   embedding), o NULL si el motor no está disponible
+similitudes_embeddings <- function(query, data) {
 
   if (!.emb$listo) return(NULL)
   if (!"TITULO" %in% colnames(data)) return(NULL)
@@ -96,63 +99,30 @@ buscar_por_embeddings <- function(query, data, top_k = 20, threshold = THRESHOLD
     )[1L, ])
 
     # Alinear data con embeddings via TITULO
-    # (robusto ante filtros, reordenamientos o versiones distintas del dataset)
-    titulo_a_emb_idx <- setNames(seq_along(.emb$titulos) - 1L, .emb$titulos)
-
-    data_titulos <- as.character(data$TITULO)
-    emb_indices  <- titulo_a_emb_idx[data_titulos]   # NA si el título no está en el índice
+    titulo_a_emb_idx <- setNames(seq_along(.emb$titulos), .emb$titulos)
+    emb_indices <- titulo_a_emb_idx[as.character(data$TITULO)]   # NA si el título no está en el índice
 
     validos <- which(!is.na(emb_indices))
     if (length(validos) == 0) {
-      cat("⚠️  [EMBED] Ningún título del data coincide con el índice. Regenerar embeddings.\n")
+      cat("⚠️  [EMBED] Ningún título del data coincide con el índice. Regenerar embeddings.
+")
       return(NULL)
     }
 
-    idx_r <- emb_indices[validos] + 1L   # convertir 0-based → 1-based para R
-    sub_matrix <- .emb$matrix[idx_r, , drop = FALSE]   # submatriz alineada
-
     # Similitud coseno (embeddings normalizados → dot product)
-    sims_sub <- as.numeric(sub_matrix %*% qv)
+    sims <- rep(NA_real_, nrow(data))
+    sims[validos] <- as.numeric(.emb$matrix[emb_indices[validos], , drop = FALSE] %*% qv)
 
     cat(paste0("   [EMBED] ", length(validos), " papers alineados | sim_max=",
-               round(max(sims_sub), 3), "\n"))
-
-    # Filtrar por threshold (relajar si no hay resultados)
-    mask <- sims_sub >= threshold
-    if (!any(mask)) {
-      th2  <- threshold * 0.65
-      mask <- sims_sub >= th2
-      if (any(mask)) cat(paste0("   [EMBED] Threshold relajado a ", round(th2, 3), "\n"))
-    }
-
-    if (!any(mask)) {
-      cat("   [EMBED] Sin resultados\n")
-      return(data.frame())
-    }
-
-    # Top-K ordenado por similitud
-    orden      <- order(sims_sub[mask], decreasing = TRUE)
-    top_validos <- validos[mask][orden]
-    top_sims    <- sims_sub[mask][orden]
-    top_k_idx   <- head(seq_along(top_validos), top_k)
-
-    resultado <- data[top_validos[top_k_idx], ]
-    resultado$score_semantico   <- top_sims[top_k_idx]
-    resultado$score_normalizado <- normalizar_emb(top_sims[top_k_idx])
-
-    cat(paste0("   [EMBED] ", nrow(resultado), " papers encontrados\n"))
-    return(resultado)
+               round(max(sims, na.rm = TRUE), 3), "
+"))
+    sims
 
   }, error = function(e) {
-    cat(paste0("❌ [EMBED] Error en búsqueda: ", conditionMessage(e), "\n"))
-    return(NULL)
+    cat(paste0("❌ [EMBED] Error en búsqueda: ", conditionMessage(e), "
+"))
+    NULL
   })
-}
-
-normalizar_emb <- function(s) {
-  mn <- min(s, na.rm = TRUE); mx <- max(s, na.rm = TRUE)
-  if (mx == mn) return(rep(1, length(s)))
-  (s - mn) / (mx - mn)
 }
 
 embeddings_listos <- function() .emb$listo

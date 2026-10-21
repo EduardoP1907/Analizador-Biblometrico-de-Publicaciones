@@ -1,7 +1,7 @@
 #=======================================================================
 # SERVIDOR — Pestaña de Evaluación Cuantitativa (F1-Score)
-# Compara búsqueda baseline vs sistema NLP sobre 15 consultas con
-# ground truth construido del corpus USACH (3.914 papers)
+# Compara baseline, búsqueda difusa y sistema híbrido sobre las consultas
+# del ground truth (las 3.596 publicaciones que recibe el módulo de búsqueda)
 #=======================================================================
 
 # Cargar módulo de métricas una sola vez
@@ -23,7 +23,7 @@ server_tab_evaluacion <- function(input, output, session, data) {
         style = "text-align: center; padding: 30px; color: #666;",
         tags$i(class = "fas fa-spinner fa-spin fa-2x", style = "color: #1a237e;"),
         br(), br(),
-        p("Evaluando 15 consultas sobre el corpus de 3.914 papers...", style = "font-size: 14px;"),
+        p("Evaluando 15 consultas sobre las 3.596 publicaciones del corpus...", style = "font-size: 14px;"),
         p(tags$small("Esto puede tomar entre 30 y 60 segundos según el motor activo."))
       )
     })
@@ -70,12 +70,12 @@ server_tab_evaluacion <- function(input, output, session, data) {
     # ── KPIs individuales ────────────────────────────────────────────────────
     resumen <- evaluacion$resumen
 
-    f1_base <- resumen$f1_macro[resumen$sistema == "Baseline (exacto)"]
-    f1_nlp  <- resumen$f1_macro[resumen$sistema == "Sistema NLP"]
-    p_base  <- resumen$precision_macro[resumen$sistema == "Baseline (exacto)"]
-    p_nlp   <- resumen$precision_macro[resumen$sistema == "Sistema NLP"]
-    r_base  <- resumen$recall_macro[resumen$sistema == "Baseline (exacto)"]
-    r_nlp   <- resumen$recall_macro[resumen$sistema == "Sistema NLP"]
+    f1_base <- resumen$f1_macro[resumen$sistema == SISTEMA_BASELINE]
+    f1_nlp  <- resumen$f1_macro[resumen$sistema == SISTEMA_HIBRIDO]
+    p_base  <- resumen$precision_macro[resumen$sistema == SISTEMA_BASELINE]
+    p_nlp   <- resumen$precision_macro[resumen$sistema == SISTEMA_HIBRIDO]
+    r_base  <- resumen$recall_macro[resumen$sistema == SISTEMA_BASELINE]
+    r_nlp   <- resumen$recall_macro[resumen$sistema == SISTEMA_HIBRIDO]
     mejora  <- if (length(f1_base) > 0 && f1_base > 0)
       round((f1_nlp - f1_base) / f1_base * 100, 1) else 0
 
@@ -99,7 +99,7 @@ server_tab_evaluacion <- function(input, output, session, data) {
       div(
         style = "background: #e8f5e9; border-radius: 10px; padding: 20px; text-align: center; border-left: 5px solid #2e7d32;",
         tags$i(class = "fas fa-brain fa-2x", style = "color: #2e7d32; margin-bottom: 10px;"),
-        h5("Sistema NLP", style = "color: #2e7d32; margin: 5px 0;"),
+        h5(SISTEMA_HIBRIDO, style = "color: #2e7d32; margin: 5px 0;"),
         tags$p(
           style = "font-size: 28px; font-weight: bold; color: #1b5e20; margin: 5px 0;",
           sprintf("%.3f", f1_nlp)
@@ -125,7 +125,7 @@ server_tab_evaluacion <- function(input, output, session, data) {
         ),
         tags$small(
           style = "color: #555;",
-          "NLP vs Baseline (macro)"
+          "Híbrido vs Baseline (macro)"
         )
       )
     })
