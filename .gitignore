@@ -11,3 +11,10 @@ APPPapers/www/BD/
 
 # Documentos personales / informes
 *.docx
+.RDataTmp
+__pycache__/
+
+# Documentos del informe de titulación (no se versionan)
+APPPapers/INFORME_TESIS_*.pdf
+APPPapers/Informe Revisado*
+APPPapers/Gu*a para el formato*.pdf

@@ -14,7 +14,6 @@ server <- function(input, output, session) {  # <- INICIO de la función server
   source("www/SOURCE/SERVER/server_tab_indicadores.R")          # <- Carga lógica del panel de indicadores
   source("www/SOURCE/SERVER/server_tab_perfiles.R")             # <- Carga lógica del panel de perfiles
   source("www/SOURCE/SERVER/server_tab_analisis_dominio.R")     # <- Carga lógica del panel de dominio
-  source("SUPPORTING_CODES/014_buscar_palabra_archivos.R")
   source("www/SOURCE/SERVER/server_tab_busqueda.R")
   source("www/SOURCE/SERVER/server_tab_evaluacion.R")
 

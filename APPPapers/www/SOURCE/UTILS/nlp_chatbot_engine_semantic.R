@@ -15,7 +15,6 @@ source("www/SOURCE/UTILS/nlp_temporal_filters.R")
 source("www/SOURCE/UTILS/nlp_analisis_temporal_avanzado.R")
 source("www/SOURCE/UTILS/nlp_analisis_citaciones_temporal.R")
 source("www/SOURCE/UTILS/nlp_analisis_autores_temporal.R")
-source("www/SOURCE/UTILS/nlp_visualizaciones_temporales.R")
 
 # Cargar módulo de búsqueda por autor (fix: detector corregido)
 source("www/SOURCE/UTILS/nlp_busqueda_por_autor.R")
@@ -688,15 +687,6 @@ mejorar_redaccion_resumen <- function(resumen) {
   return(resumen)
 }
 
-#' Funciones auxiliares mejoradas
-extraer_terminos_basicos_mejorado <- function(query) {
-  expansion <- expandir_consulta_semantica(query)
-  terminos_originales <- unlist(strsplit(limpiar_texto_para_sinonimos(query), "\\s+"))
-  terminos_expandidos <- head(expansion$terminos_adicionales, 5)
-
-  return(unique(c(terminos_originales, terminos_expandidos)))
-}
-
 preparar_papers_info_mejorado <- function(papers) {
   if (nrow(papers) == 0) return(data.frame())
   if (!"score_semantico"  %in% colnames(papers)) papers$score_semantico  <- 0
@@ -709,42 +699,6 @@ preparar_papers_info_mejorado <- function(papers) {
   papers_info <- papers[, cols, drop = FALSE]
   papers_info <- papers_info[order(papers_info$score_normalizado, decreasing = TRUE), ]
   return(papers_info)
-}
-
-generar_mensaje_sin_resultados <- function(query, expansion_result) {
-  if(expansion_result$num_expansiones > 0) {
-    return(paste0("No se encontraron papers relacionados con '", query,
-                 "' ni con sus términos relacionados. Intente con términos más específicos o diferentes."))
-  } else {
-    return(paste0("No se encontraron papers relacionados con '", query,
-                 "'. Intente con términos diferentes o más generales."))
-  }
-}
-
-#' Generar mensaje sin resultados considerando filtros temporales
-generar_mensaje_sin_resultados_temporal <- function(query, restricciones_temporales, expansion_result) {
-
-  mensaje_base <- if(expansion_result$num_expansiones > 0) {
-    paste0("No se encontraron papers relacionados con '", query, "' ni con sus términos relacionados")
-  } else {
-    paste0("No se encontraron papers relacionados con '", query, "'")
-  }
-
-  if(restricciones_temporales$tiene_restriccion) {
-    mensaje_temporal <- paste0(" que cumplan el criterio temporal: ", restricciones_temporales$descripcion_filtro)
-    mensaje_completo <- paste0(mensaje_base, mensaje_temporal, ". ")
-
-    # Sugerencias específicas para filtros temporales
-    if(!is.null(restricciones_temporales$ano_desde) && restricciones_temporales$ano_desde >= 2020) {
-      mensaje_completo <- paste0(mensaje_completo, "Intente ampliar el rango de años o buscar términos más generales.")
-    } else {
-      mensaje_completo <- paste0(mensaje_completo, "Intente con términos diferentes o ajustar el período temporal.")
-    }
-
-    return(mensaje_completo)
-  } else {
-    return(paste0(mensaje_base, ". Intente con términos diferentes o más generales."))
-  }
 }
 
 obtener_info_scoring <- function(papers) {
@@ -762,68 +716,6 @@ analizar_terminos_frecuentes <- function(texto) {
   tokens <- tokens[nchar(tokens) >= 4]
   freq_table <- table(tokens)
   return(head(sort(freq_table, decreasing = TRUE), 10))
-}
-
-#' Función de prueba integrada
-probar_motor_semantico <- function() {
-  cat("=== PROBANDO MOTOR SEMÁNTICO INTEGRADO ===\n\n")
-
-  # Crear datos de prueba
-  datos_test <- data.frame(
-    TITULO = c(
-      "Machine Learning Algorithms for Image Classification",
-      "Deep Neural Networks in Computer Vision Applications",
-      "Optimization Techniques Using Genetic Algorithms",
-      "Data Mining Approaches for Business Intelligence"
-    ),
-    RESUMEN = c(
-      "This paper presents machine learning algorithms for image classification using convolutional neural networks",
-      "Deep learning approaches for computer vision with applications in object detection and recognition",
-      "Genetic algorithms and evolutionary computation for optimization problems in engineering",
-      "Data mining techniques and analytics for extracting business insights from large datasets"
-    ),
-    AUTOR_PALABRAS_CLAVES = c(
-      "machine learning, image classification, CNN, computer vision",
-      "deep learning, neural networks, object detection, computer vision",
-      "genetic algorithms, optimization, evolutionary computation",
-      "data mining, business intelligence, analytics, big data"
-    ),
-    NOMBRE_AUTOR = c("Smith, J.", "Johnson, A.", "Brown, K.", "Davis, R."),
-    ANO = c("2023", "2022", "2023", "2021"),
-    SJR = c("1.2", "1.5", "0.8", "1.1"),
-    CITADO_POR = c("25", "45", "12", "33"),
-    LINK = c("link1", "link2", "link3", "link4"),
-    stringsAsFactors = FALSE
-  )
-
-  # Consultas de prueba
-  consultas_test <- c(
-    "machine learning",
-    "computer vision algorithms",
-    "genetic optimization",
-    "data analysis techniques"
-  )
-
-  for(consulta in consultas_test) {
-    cat(paste("🔍 PRUEBA:", consulta, "\n"))
-    cat("=" * 50, "\n")
-
-    resultado <- proceso_nlp_chatbot_semantico(consulta, datos_test, usar_expansion_semantica = TRUE)
-
-    if(resultado$success) {
-      cat(paste("✅ Papers encontrados:", resultado$num_papers, "\n"))
-      cat(paste("📝 Resumen:", substr(resultado$resumen_generado, 1, 150), "...\n"))
-      cat(paste("🔧 Expansiones semánticas:", resultado$expansion_info$num_expansiones, "\n"))
-      if(resultado$num_papers > 0) {
-        cat(paste("⭐ Score máximo:", round(max(resultado$papers$score_normalizado), 3), "\n"))
-      }
-    } else {
-      cat(paste("❌ Error:", resultado$message, "\n"))
-    }
-    cat("\n")
-  }
-
-  cat("=== FIN PRUEBAS MOTOR SEMÁNTICO ===\n")
 }
 
 # Para compatibilidad, mantener la función original pero redirigir al motor semántico
@@ -976,106 +868,4 @@ crear_resumen_ejecutivo_temporal <- function(resultados_analisis, query_original
   }
 
   return(resumen_ejecutivo)
-}
-
-#' Función de demostración de análisis temporal avanzado
-#' @param query Query de ejemplo
-#' @param data Dataset de prueba
-demostrar_analisis_temporal_avanzado <- function(query = "machine learning", data = NULL) {
-
-  cat("🔬 DEMOSTRACIÓN DE ANÁLISIS TEMPORAL AVANZADO - FASE 2\n")
-  cat("=" * 60, "\n\n")
-
-  if(is.null(data)) {
-    # Crear dataset de prueba más extenso
-    data <- data.frame(
-      TITULO = c(
-        "Machine Learning Algorithms for Image Classification in 2020",
-        "Deep Learning Approaches in Computer Vision 2021",
-        "Advanced Neural Networks for Pattern Recognition 2022",
-        "AI Applications in Medical Diagnosis 2023",
-        "Evolutionary Algorithms for Optimization Problems 2019",
-        "Genetic Programming in Software Engineering 2020",
-        "Data Mining Techniques for Business Intelligence 2021",
-        "Big Data Analytics Using Machine Learning 2022",
-        "Computer Vision for Autonomous Vehicles 2023",
-        "Natural Language Processing in Healthcare 2020"
-      ),
-      ANO = c("2020", "2021", "2022", "2023", "2019", "2020", "2021", "2022", "2023", "2020"),
-      RESUMEN = c(
-        "Machine learning algorithms applied to image classification tasks",
-        "Deep learning methodologies for computer vision applications",
-        "Advanced neural network architectures for pattern recognition",
-        "Artificial intelligence applications in medical diagnosis",
-        "Evolutionary computation for complex optimization problems",
-        "Genetic programming techniques in software engineering",
-        "Data mining approaches for business intelligence",
-        "Big data analytics using machine learning techniques",
-        "Computer vision systems for autonomous vehicle navigation",
-        "Natural language processing applications in healthcare"
-      ),
-      AUTOR_PALABRAS_CLAVES = c(
-        "machine learning, image classification, algorithms",
-        "deep learning, computer vision, neural networks",
-        "neural networks, pattern recognition, AI",
-        "artificial intelligence, medical diagnosis, healthcare",
-        "evolutionary algorithms, optimization, genetic algorithms",
-        "genetic programming, software engineering, automation",
-        "data mining, business intelligence, analytics",
-        "big data, machine learning, analytics",
-        "computer vision, autonomous vehicles, AI",
-        "natural language processing, healthcare, NLP"
-      ),
-      NOMBRE_AUTOR = c(
-        "Smith, J.", "Johnson, A.", "Brown, K.", "Davis, R.", "Wilson, M.",
-        "Johnson, A.", "Smith, J.", "Brown, K.", "Davis, R.", "Wilson, M."
-      ),
-      SJR = c("1.2", "1.5", "1.8", "2.1", "0.9", "1.1", "1.3", "1.6", "1.9", "1.4"),
-      CITADO_POR = c("25", "45", "67", "89", "12", "23", "34", "56", "78", "43"),
-      LINK = paste0("link", 1:10),
-      stringsAsFactors = FALSE
-    )
-  }
-
-  cat("📊 Dataset de prueba:\n")
-  cat(paste("  - Papers:", nrow(data), "\n"))
-  cat(paste("  - Autores únicos:", length(unique(data$NOMBRE_AUTOR)), "\n"))
-  cat(paste("  - Rango temporal:", min(data$ANO), "-", max(data$ANO), "\n\n"))
-
-  # Ejecutar análisis temporal completo
-  cat("🚀 Ejecutando análisis temporal completo...\n\n")
-
-  resultados <- ejecutar_analisis_temporal_completo(data, query)
-
-  # Mostrar resultados
-  if(!is.null(resultados$tendencias)) {
-    cat("📈 TENDENCIAS DETECTADAS:\n")
-    cat(paste("  -", resultados$tendencias$resumen_textual, "\n"))
-  }
-
-  if(!is.null(resultados$evolucion_temas)) {
-    cat("\n🔄 EVOLUCIÓN DE TEMAS:\n")
-    cat(paste("  -", resultados$evolucion_temas$resumen_evolucion, "\n"))
-  }
-
-  if(!is.null(resultados$citaciones_temporal)) {
-    cat("\n📊 ANÁLISIS DE CITACIONES:\n")
-    cat(paste("  -", resultados$citaciones_temporal$resumen_general, "\n"))
-  }
-
-  if(!is.null(resultados$autores_temporal)) {
-    cat("\n👥 PRODUCTIVIDAD DE AUTORES:\n")
-    cat(paste("  -", resultados$autores_temporal$resumen_general, "\n"))
-  }
-
-  if(!is.null(resultados$resumen_ejecutivo)) {
-    cat("\n📋 RESUMEN EJECUTIVO:\n")
-    cat(paste("  - Análisis ejecutados:", length(resultados$resumen_ejecutivo$analisis_ejecutados), "\n"))
-    cat(paste("  - Principales hallazgos:", length(resultados$resumen_ejecutivo$principales_hallazgos), "\n"))
-  }
-
-  cat("\n✅ DEMOSTRACIÓN COMPLETADA\n")
-  cat("=" * 60, "\n")
-
-  return(resultados)
 }

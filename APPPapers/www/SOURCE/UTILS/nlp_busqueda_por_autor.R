@@ -368,36 +368,3 @@ generar_resumen_busqueda_autor <- function(papers, nombre_autor, query_original)
 }
 
 # ── Función principal de búsqueda por autor (compatibilidad con motor) ────────
-
-proceso_busqueda_por_autor <- function(query, data) {
-  filtro_autor <- extraer_filtro_autor(query)
-  if (!filtro_autor$tiene) {
-    return(list(es_busqueda_autor = FALSE, mensaje = "No se detectó búsqueda por autor"))
-  }
-
-  papers <- aplicar_filtro_autor(data, filtro_autor$nombre)
-  resumen <- generar_resumen_busqueda_autor(papers, filtro_autor$nombre, query)
-
-  list(
-    es_busqueda_autor  = TRUE,
-    success            = TRUE,
-    nombre_autor       = filtro_autor$nombre,
-    confianza_deteccion = 0.9,
-    num_papers         = nrow(papers),
-    papers             = papers,
-    resumen_generado   = resumen,
-    query_original     = query
-  )
-}
-
-# Compatibilidad con llamadas existentes en el motor semántico
-detectar_busqueda_por_autor <- function(query) {
-  r <- extraer_filtro_autor(query)
-  list(
-    es_busqueda_autor      = r$tiene,
-    nombre_autor_detectado = r$nombre,
-    patron_usado           = "parsear_filtros",
-    query_original         = query,
-    confianza              = if (r$tiene) 0.9 else 0
-  )
-}

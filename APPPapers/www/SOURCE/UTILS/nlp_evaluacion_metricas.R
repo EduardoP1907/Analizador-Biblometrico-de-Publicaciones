@@ -66,16 +66,6 @@ calcular_tp <- function(titulos_recuperados, titulos_gt) {
   tp
 }
 
-calcular_precision <- function(titulos_recuperados, titulos_gt) {
-  if (length(titulos_recuperados) == 0) return(0)
-  calcular_tp(titulos_recuperados, titulos_gt) / length(titulos_recuperados)
-}
-
-calcular_recall <- function(titulos_recuperados, titulos_gt) {
-  if (length(titulos_gt) == 0) return(0)
-  calcular_tp(titulos_recuperados, titulos_gt) / length(titulos_gt)
-}
-
 calcular_f1 <- function(precision, recall) {
   if ((precision + recall) == 0) return(0)
   2 * (precision * recall) / (precision + recall)
@@ -352,13 +342,4 @@ generar_tabla_evaluacion_html <- function(evaluacion) {
       )
     )
   )
-}
-
-generar_reporte_texto <- function(evaluacion) {
-  resumen <- evaluacion$resumen
-  for (i in seq_len(nrow(resumen))) {
-    cat(sprintf("%-20s Precisión: %.4f | Recall: %.4f | F1-Score: %.4f\n",
-                resumen$sistema[i], resumen$precision_macro[i],
-                resumen$recall_macro[i], resumen$f1_macro[i]))
-  }
 }
