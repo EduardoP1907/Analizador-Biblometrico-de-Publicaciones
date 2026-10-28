@@ -17,7 +17,7 @@ get_diccionario_sinonimos <- function() {
   list(
     # MACHINE LEARNING Y AI
     "machine learning" = c("aprendizaje automatico", "aprendizaje maquina", "ml", "algoritmos aprendizaje", "inteligencia artificial", "ai", "automated learning", "statistical learning"),
-    "artificial intelligence" = c("inteligencia artificial", "ai", "machine learning", "ml", "sistemas inteligentes", "cognitive computing"),
+    "artificial intelligence" = c("inteligencia artificial", "ai", "ia", "machine learning", "ml", "sistemas inteligentes", "cognitive computing"),
     "deep learning" = c("aprendizaje profundo", "redes profundas", "neural networks", "redes neuronales", "dl", "deep neural networks"),
 
     # REDES NEURONALES
@@ -87,6 +87,16 @@ get_diccionario_sinonimos <- function() {
     "model" = c("modelo", "representation", "representacion", "simulation", "simulacion"),
     "system" = c("sistema", "platform", "plataforma", "framework", "architecture", "arquitectura")
   )
+}
+
+#' Siglas del diccionario (términos de una palabra con 3 caracteres o menos)
+#'
+#' El parser de consultas descarta los tokens cortos; las siglas que están en el
+#' diccionario ("ml", "ia", "nlp") se conservan para poder expandirlas.
+siglas_diccionario <- function() {
+  dic <- get_diccionario_sinonimos()
+  terminos <- unique(c(names(dic), unlist(dic, use.names = FALSE)))
+  terminos[nchar(terminos) <= 3 & !grepl("\\s", terminos)]
 }
 
 #' Expandir consulta con sinónimos académicos
@@ -163,6 +173,12 @@ detectar_termino_en_consulta <- function(consulta, termino) {
   # Normalizar ambos
   consulta_norm <- limpiar_texto_para_sinonimos(consulta)
   termino_norm <- limpiar_texto_para_sinonimos(termino)
+
+  # Siglas (3 caracteres o menos): solo como palabra completa, para que "ai"
+  # no coincida dentro de "blockchain" ni "ml" dentro de "html"
+  if(nchar(termino_norm) <= 3) {
+    return(termino_norm %in% unlist(strsplit(consulta_norm, "\\s+")))
+  }
 
   # Búsqueda exacta
   if(grepl(termino_norm, consulta_norm, fixed = TRUE)) {

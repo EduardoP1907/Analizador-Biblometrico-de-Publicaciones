@@ -242,7 +242,7 @@ server_tab_busqueda <- function(input, output, session, data) {
             ),
             tags$div(
               style = "font-size: 12px; color: #666;",
-              "Papers encontrados"
+              "Publicaciones encontradas"
             )
           )
         ),
@@ -268,7 +268,7 @@ server_tab_busqueda <- function(input, output, session, data) {
             ),
             tags$div(
               style = "font-size: 12px; color: #666;",
-              "Procesamiento NLP"
+              "Procesamiento PLN"
             )
           )
         )
@@ -366,7 +366,7 @@ crear_respuesta_ui <- function(resultado, query_original) {
         style = "display: flex; align-items: center; margin-bottom: 12px;",
         tags$i(class = "fas fa-file-alt", style = "color: #28a745; margin-right: 8px; font-size: 16px;"),
         tags$strong(
-          paste("Papers encontrados:", resultado$num_papers),
+          paste("Publicaciones encontradas:", resultado$num_papers),
           style = "color: #495057; font-size: 14px;"
         )
       ),
@@ -462,7 +462,7 @@ crear_tabla_papers <- function(papers_df) {
       tags$div(
         style = "text-align: center; margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;",
         tags$strong(
-          paste("📊 Mostrando todos los", nrow(papers_df), "papers encontrados"),
+          paste("📊 Mostrando las", nrow(papers_df), "publicaciones encontradas"),
           style = "color: #495057; font-size: 14px;"
         )
       )
@@ -495,11 +495,11 @@ generate_chat_html <- function(historia) {
   full_html <- paste0(
     '<!DOCTYPE html>',
     '<html><head>',
-    '<title>Conversación Chatbot NLP - ', format(Sys.Date(), "%Y-%m-%d"), '</title>',
+    '<title>Conversación con el asistente de búsqueda - ', format(Sys.Date(), "%Y-%m-%d"), '</title>',
     '<meta charset="UTF-8">',
     '<style>body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }</style>',
     '</head><body>',
-    '<h1>Conversación con Chatbot NLP Bibliométrico</h1>',
+    '<h1>Conversación con el asistente de búsqueda de APPPapers</h1>',
     '<p><strong>Exportado:</strong> ', format(Sys.time(), "%Y-%m-%d %H:%M:%S"), '</p>',
     '<hr>',
     paste(chat_html, collapse = "\n"),

@@ -414,7 +414,7 @@ generar_resumen_citaciones_temporal <- function(resultados_periodos, analisis_co
 
   resumen <- paste0(
     "📊 ANÁLISIS TEMPORAL DE CITACIONES COMPLETADO: ",
-    num_periodos, " períodos analizados con ", total_papers, " papers totales. "
+    num_periodos, " períodos analizados con ", total_papers, " publicaciones en total. "
   )
 
   # Información sobre el mejor período

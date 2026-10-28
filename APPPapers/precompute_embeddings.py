@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Precompute multilingual embeddings for the bibliometric database.
-Model: paraphrase-multilingual-MiniLM-L12-v2 (50+ languages, 384 dims)
+Model: paraphrase-multilingual-MiniLM-L12-v2 (50+ languages, 384 dims,
+input window of 128 tokens: each paper is split into passages, see prepare_chunks)
 
 Run ONCE (or when CSV data changes):
     python precompute_embeddings.py
@@ -24,36 +25,51 @@ IDS_PATH = BASE_DIR / "www" / "BD" / "paper_ids.npy"
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
 
-def prepare_text(row):
-    """Concatenate relevant fields for a paper into a single searchable string."""
-    parts = []
+def _field(row, name):
+    value = str(row.get(name, "") or "").strip()
+    return "" if value.lower() == "nan" else value
 
-    # Title (most discriminative field)
-    titulo = str(row.get("TITULO", "") or "").strip()
-    if titulo:
-        parts.append(titulo)
 
-    # Abstract (truncated to avoid token limits)
-    resumen = str(row.get("RESUMEN", "") or "").strip()
+def prepare_chunks(row, tokenizer, max_tokens):
+    """Split a paper into passages that fit in the model's input window.
+
+    The model truncates its input at max_seq_length tokens (128), so a single
+    concatenation of title, abstract and keywords loses everything after the
+    first ~128 tokens. Instead, the paper is split into passages:
+      1. title + author keywords + index keywords + research area
+      2..n. the full abstract, in consecutive windows of at most max_tokens
+    Each passage is encoded separately and the paper embedding is the
+    re-normalized mean of the passage embeddings (see paper_embeddings).
+    """
+    head = " | ".join(p for p in (_field(row, "TITULO"), _field(row, "AUTOR_PALABRAS_CLAVES"),
+                                  _field(row, "INDEX_PALABRAS_CLAVES"), _field(row, "AREA_COMPUTACION")) if p)
+    chunks = _windows(head, tokenizer, max_tokens) if head else []
+
+    resumen = _field(row, "RESUMEN")
     if resumen:
-        parts.append(resumen[:600])
+        chunks.extend(_windows(resumen, tokenizer, max_tokens))
 
-    # Author keywords (high signal)
-    kw_autor = str(row.get("AUTOR_PALABRAS_CLAVES", "") or "").strip()
-    if kw_autor:
-        parts.append(kw_autor[:300])
+    return chunks if chunks else ["unknown paper"]
 
-    # Index keywords
-    kw_index = str(row.get("INDEX_PALABRAS_CLAVES", "") or "").strip()
-    if kw_index:
-        parts.append(kw_index[:200])
 
-    # Research area (Spanish label — helps multilingual matching)
-    area = str(row.get("AREA_COMPUTACION", "") or "").strip()
-    if area:
-        parts.append(area)
+def _windows(text, tokenizer, max_tokens):
+    """Cut text into consecutive pieces of at most max_tokens tokens."""
+    ids = tokenizer(text, add_special_tokens=False)["input_ids"]
+    if len(ids) <= max_tokens:
+        return [text]
+    return [tokenizer.decode(ids[i:i + max_tokens]) for i in range(0, len(ids), max_tokens)]
 
-    return " | ".join(parts) if parts else "unknown paper"
+
+def paper_embeddings(model, chunks_per_paper, batch_size=64):
+    """Encode every passage and average them per paper (L2-normalized)."""
+    flat = [c for chunks in chunks_per_paper for c in chunks]
+    owner = np.repeat(np.arange(len(chunks_per_paper)), [len(c) for c in chunks_per_paper])
+    vecs = model.encode(flat, batch_size=batch_size, show_progress_bar=True,
+                        convert_to_numpy=True, normalize_embeddings=True)
+    out = np.zeros((len(chunks_per_paper), vecs.shape[1]), dtype=np.float32)
+    np.add.at(out, owner, vecs)
+    out /= np.linalg.norm(out, axis=1, keepdims=True)   # L2-normalize → cosine = dot product
+    return out, len(flat)
 
 
 def main():
@@ -70,15 +86,8 @@ def main():
     df = pd.read_csv(CSV_PATH, sep="|", encoding="utf-8", low_memory=False)
     print(f"      {len(df):,} papers loaded | {len(df.columns)} columns")
 
-    # ── 2. Prepare texts ─────────────────────────────────────────
-    print("\n[2/4] Preparing paper texts...")
-    texts = [prepare_text(row) for _, row in df.iterrows()]
-    avg_len = sum(len(t) for t in texts) / len(texts)
-    print(f"      Done. Avg text length: {avg_len:.0f} chars")
-    print(f"      Sample: {texts[0][:120]}...")
-
-    # ── 3. Load model ────────────────────────────────────────────
-    print(f"\n[3/4] Loading model: {MODEL_NAME}")
+    # ── 2. Load model ────────────────────────────────────────────
+    print(f"\n[2/4] Loading model: {MODEL_NAME}")
     print("      (First run downloads ~90 MB — may take 1-2 min)")
     try:
         from sentence_transformers import SentenceTransformer
@@ -88,19 +97,21 @@ def main():
         sys.exit(1)
 
     model = SentenceTransformer(MODEL_NAME)
-    print("      Model loaded OK")
+    # 2 tokens of the window are taken by the special tokens <s> and </s>
+    max_tokens = model.max_seq_length - 2
+    print(f"      Model loaded OK | max_seq_length = {model.max_seq_length}")
+
+    # ── 3. Prepare passages ──────────────────────────────────────
+    print("\n[3/4] Splitting papers into passages...")
+    chunks = [prepare_chunks(row, model.tokenizer, max_tokens) for _, row in df.iterrows()]
+    n_chunks = [len(c) for c in chunks]
+    print(f"      Done. Passages per paper: mean {np.mean(n_chunks):.1f}, max {max(n_chunks)}")
+    print(f"      Sample: {chunks[0][0][:120]}...")
 
     # ── 4. Compute embeddings ────────────────────────────────────
-    print(f"\n[4/4] Computing embeddings for {len(texts):,} papers...")
-    print("      Batch size: 64 | Estimated time: 1-3 min on CPU")
-
-    embeddings = model.encode(
-        texts,
-        batch_size=64,
-        show_progress_bar=True,
-        convert_to_numpy=True,
-        normalize_embeddings=True,   # L2-normalize → cosine = dot product
-    )
+    print(f"\n[4/4] Computing embeddings for {len(chunks):,} papers...")
+    embeddings, total = paper_embeddings(model, chunks)
+    print(f"      {total:,} passages encoded")
 
     print(f"\n      Shape: {embeddings.shape} | dtype: {embeddings.dtype}")
     print(f"      Size:  {embeddings.nbytes / 1e6:.1f} MB")

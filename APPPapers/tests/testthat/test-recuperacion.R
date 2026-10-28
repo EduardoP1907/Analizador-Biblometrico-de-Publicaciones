@@ -87,3 +87,10 @@ test_that("RF-07: una consulta sin coincidencias devuelve un data.frame vacío",
   })
   expect_equal(nrow(r), 0)
 })
+
+test_that("RF-04: una sigla se expande y no coincide dentro de otra palabra", {
+  e <- expandir_consulta_semantica("ml")
+  expect_true("machine learning" %in% names(e$sinonimos_encontrados))
+  expect_false(detectar_termino_en_consulta("blockchain consensus", "ai"))
+  expect_false(detectar_termino_en_consulta("html parsing", "ml"))
+})

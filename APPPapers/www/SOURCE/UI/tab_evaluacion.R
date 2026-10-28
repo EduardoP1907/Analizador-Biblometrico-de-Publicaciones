@@ -9,7 +9,7 @@ tab_evaluacion <- tabPanel(
       div(
         style = "background: linear-gradient(135deg, #1a237e 0%, #283593 100%); color: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; text-align: center;",
         h4(
-          tagList(tags$i(class = "fas fa-chart-bar"), " Evaluación Cuantitativa del Sistema NLP"),
+          tagList(tags$i(class = "fas fa-chart-bar"), " Evaluación cuantitativa del módulo de PLN"),
           style = "margin: 0; font-weight: 600;"
         ),
         p(
@@ -29,7 +29,7 @@ tab_evaluacion <- tabPanel(
         h6("Precisión", style = "color: #1565c0; margin: 5px 0;"),
         tags$small(
           style = "color: #555;",
-          "¿Cuántos de los papers recuperados son realmente relevantes?",
+          "¿Cuántas de las publicaciones recuperadas son realmente relevantes?",
           br(), "TP / (TP + FP)"
         )
       )
@@ -41,7 +41,7 @@ tab_evaluacion <- tabPanel(
         h6("Recall (Exhaustividad)", style = "color: #2e7d32; margin: 5px 0;"),
         tags$small(
           style = "color: #555;",
-          "¿Qué fracción de los papers relevantes logró encontrar el sistema?",
+          "¿Qué fracción de las publicaciones relevantes logró encontrar el sistema?",
           br(), "TP / (TP + FN)"
         )
       )
@@ -73,7 +73,7 @@ tab_evaluacion <- tabPanel(
               style = "font-size: 13px; color: #555;",
               tags$strong("Ground truth: "),
               "15 consultas temáticas sobre las 3.596 publicaciones que recibe el módulo de búsqueda ",
-              "(USACH y UTFSM, WoS + Scopus). Los papers relevantes de cada consulta se juzgaron con un ",
+              "(USACH y UTFSM, WoS + Scopus). Las publicaciones relevantes de cada consulta se juzgaron con un ",
               "criterio escrito sobre candidatos agrupados desde varios sistemas (pooling). ",
               "El sistema evalúa cuántos puede recuperar cada motor de búsqueda."
             )

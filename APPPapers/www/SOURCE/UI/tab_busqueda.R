@@ -33,7 +33,7 @@ loading_css <- tags$head(
 
 # Pestaña de búsqueda con chatbot NLP avanzado
 tab_busqueda <- tabPanel(
-  title = tagList(fa_i("robot"), "Chatbot NLP"),
+  title = tagList(fa_i("robot"), "Asistente de búsqueda"),
 
   # Incluir CSS personalizado
   loading_css,
@@ -45,7 +45,7 @@ tab_busqueda <- tabPanel(
         class = "chatbot-header",
         style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; text-align: center;",
         h4(tagList(fa_i("brain"), " Motor de Procesamiento de Lenguaje Natural"), style = "margin: 0; font-weight: 600;"),
-        p("Realiza consultas inteligentes sobre papers académicos y obtén resúmenes generados automáticamente", 
+        p("Consulta las publicaciones científicas en lenguaje natural y obtén un resumen generado automáticamente", 
           style = "margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;")
       )
     )
@@ -91,7 +91,7 @@ tab_busqueda <- tabPanel(
               '"análisis de sentimientos en redes sociales"', br(),
               '"algoritmos genéticos optimización"'
             ),
-            p("Analizaré los abstracts de todos los papers encontrados y generaré un resumen completamente nuevo.", 
+            p("Analizaré los resúmenes de las publicaciones encontradas y generaré una síntesis.", 
               style = "margin-top: 15px; font-style: italic;")
           )
         ),
@@ -104,7 +104,7 @@ tab_busqueda <- tabPanel(
             br(),
             tags$strong("🔍 Procesando consulta con IA semántica...", style = "font-size: 16px; color: #495057; margin-bottom: 8px; display: block;"),
             br(),
-            tags$small("Analizando términos • Aplicando filtros temporales • Buscando papers • Generando resumen", style = "color: #6c757d; font-size: 12px; line-height: 1.4;"),
+            tags$small("Analizando términos • Aplicando filtros temporales • Buscando publicaciones • Generando resumen", style = "color: #6c757d; font-size: 12px; line-height: 1.4;"),
             br(), br(),
             div(
               style = "width: 100%; height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden; margin-top: 15px;",
@@ -133,7 +133,7 @@ tab_busqueda <- tabPanel(
             textInput(
               inputId = "buscador-query",
               label = NULL,
-              placeholder = "Escribe tu consulta sobre papers académicos... ej: 'machine learning en medicina'",
+              placeholder = "Escribe tu consulta sobre publicaciones científicas... ej: 'machine learning en medicina'",
               width = "100%"
             )
           ),

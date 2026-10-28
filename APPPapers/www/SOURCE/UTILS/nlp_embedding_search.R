@@ -4,11 +4,12 @@
 # Alineación: por TITULO (no por índice de fila)
 #=======================================
 
-# Apuntar reticulate al Python de Miniconda.
-# La ruta se lee de la variable de entorno APPPAPERS_PYTHON; si no está
-# definida se usa la del equipo de desarrollo.
-PYTHON_PATH <- Sys.getenv("APPPAPERS_PYTHON", "C:/Users/eduar/miniconda3/python.exe")
-if (file.exists(PYTHON_PATH)) {
+# Intérprete de Python con sentence-transformers (requirements.txt).
+# La ruta se lee de la variable de entorno APPPAPERS_PYTHON (por ejemplo en
+# APPPapers/.Renviron); si no está definida, reticulate usa el Python que
+# encuentre en el sistema y, si no hay ninguno, la app opera en modo degradado.
+PYTHON_PATH <- Sys.getenv("APPPAPERS_PYTHON", "")
+if (nzchar(PYTHON_PATH) && file.exists(PYTHON_PATH)) {
   tryCatch(
     suppressWarnings(reticulate::use_python(PYTHON_PATH, required = FALSE)),
     error = function(e) NULL

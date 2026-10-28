@@ -53,3 +53,21 @@ test_that("RF-02/RF-03: parsear_filtros_query combina autor, años y tema", {
   expect_equal(c(f$anos$desde, f$anos$hasta), c(2018L, 2020L))
   expect_match(f$terminos_tema, "deep learning")
 })
+
+test_that("RF-03: detecta rangos abiertos ('desde', 'a partir de', 'hasta')", {
+  ano <- as.integer(format(Sys.Date(), "%Y"))
+  f <- extraer_filtro_anos("deep learning publicadas desde 2020")
+  expect_equal(c(f$desde, f$hasta), c(2020L, ano))
+  expect_equal(f$query_sin_anos, "deep learning publicadas")
+  expect_equal(extraer_filtro_anos("redes a partir de 2019")$desde, 2019L)
+  g <- extraer_filtro_anos("bases de datos hasta 2010")
+  expect_equal(g$hasta, 2010L)
+  expect_true(g$desde < 2000L)
+})
+
+test_that("RF-04: el tema conserva las siglas del diccionario ('ML', 'IA')", {
+  invisible(capture.output(f <- parsear_filtros_query("papers de ML")))
+  expect_equal(f$terminos_tema, "ml")
+  invisible(capture.output(g <- parsear_filtros_query("ia en educacion")))
+  expect_match(g$terminos_tema, "^ia ")
+})

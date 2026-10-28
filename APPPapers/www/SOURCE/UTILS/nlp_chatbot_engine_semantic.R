@@ -9,7 +9,6 @@ library(dplyr, warn.conflicts = FALSE)
 # Cargar módulos de expansión de sinónimos y scoring híbrido
 source("www/SOURCE/UTILS/nlp_synonyms_academic.R")
 source("www/SOURCE/UTILS/nlp_semantic_scoring.R")
-source("www/SOURCE/UTILS/nlp_temporal_filters.R")
 
 # Cargar módulos de análisis temporal avanzado
 source("www/SOURCE/UTILS/nlp_analisis_temporal_avanzado.R")
@@ -62,7 +61,7 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
     if (nrow(data_filtrada) == 0) {
       return(list(
         success          = TRUE,
-        resumen_generado = paste0("No se encontraron papers publicados entre ",
+        resumen_generado = paste0("No se encontraron publicaciones entre ",
                                    filtro_anos$desde, " y ", filtro_anos$hasta, "."),
         num_papers       = 0,
         papers           = data.frame(),
@@ -77,7 +76,7 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
     papers_autor <- aplicar_filtro_autor(data_filtrada, filtro_autor$nombre)
 
     # Solo autor (sin tema de búsqueda) → devolver resultados del autor directamente
-    if (nchar(trimws(terminos_tema)) < 3) {
+    if (nchar(trimws(terminos_tema)) < 2) {
       resumen_autor_txt <- generar_resumen_busqueda_autor(papers_autor, filtro_autor$nombre, query)
       if (filtro_anos$tiene && nrow(papers_autor) > 0) {
         resumen_autor_txt <- paste0(resumen_autor_txt, " Período: ", filtro_anos$desde, " – ", filtro_anos$hasta, ".")
@@ -106,7 +105,7 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
     if (nrow(papers_autor) == 0) {
       return(list(
         success          = TRUE,
-        resumen_generado = paste0("No se encontraron papers del autor '", filtro_autor$nombre, "'."),
+        resumen_generado = paste0("No se encontraron publicaciones del autor '", filtro_autor$nombre, "'."),
         num_papers       = 0,
         papers           = data.frame(),
         filtros_aplicados = filtros
@@ -117,7 +116,7 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
 
   # ===== PASO 3: BÚSQUEDA SEMÁNTICA =====
   # Usar terminos_tema si hay algo útil; si no, la query completa
-  query_busqueda <- if (nchar(trimws(terminos_tema)) >= 3) terminos_tema else query
+  query_busqueda <- if (nchar(trimws(terminos_tema)) >= 2) terminos_tema else query
 
   expansion_result <- NULL
   if (usar_expansion_semantica) {
@@ -138,14 +137,14 @@ proceso_nlp_chatbot_semantico <- function(query, data, openai_key = NULL, usar_e
 
   if (nrow(papers_encontrados) == 0) {
     msg <- if (filtro_autor$tiene) {
-      paste0("No se encontraron papers de '", filtro_autor$nombre,
+      paste0("No se encontraron publicaciones de '", filtro_autor$nombre,
              "' relacionados con '", terminos_tema, "'.",
              if (filtro_anos$tiene) paste0(" Período: ", filtro_anos$desde, "-", filtro_anos$hasta, ".") else "")
     } else if (filtro_anos$tiene) {
-      paste0("No se encontraron papers sobre '", query_busqueda, "' en el período ",
+      paste0("No se encontraron publicaciones sobre '", query_busqueda, "' en el período ",
              filtro_anos$desde, "-", filtro_anos$hasta, ".")
     } else {
-      paste0("No se encontraron papers relacionados con '", query, "'. ",
+      paste0("No se encontraron publicaciones relacionadas con '", query, "'. ",
              "Intente con términos diferentes o más generales.")
     }
     return(list(
@@ -422,8 +421,8 @@ sintetizar_desde_abstracts <- function(papers) {
     top6 <- names(head(freq, 6))
     if (length(top6) >= 2) {
       resultado$parrafo_tematico <- paste0(
-        "El análisis de los resúmenes de los ", length(resumenes_validos),
-        " papers encontrados revela que los conceptos más recurrentes en la literatura son: ",
+        "El análisis de los resúmenes de las ", length(resumenes_validos),
+        " publicaciones encontradas revela que los conceptos más recurrentes son: ",
         paste(top6, collapse = ", "), "."
       )
     }
@@ -605,12 +604,12 @@ crear_resumen_general <- function(query, num_papers, areas_principales) {
   if(length(areas_principales) > 0) {
     areas_texto <- paste(areas_principales, collapse = ", ")
     resumen <- paste0(
-      "Se encontraron ", num_papers, " papers relacionados con '", query,
+      "Se encontraron ", num_papers, " publicaciones relacionadas con '", query,
       "', abarcando principalmente investigaciones en ", areas_texto, ". "
     )
   } else {
     resumen <- paste0(
-      "Se encontraron ", num_papers, " papers relacionados con '", query,
+      "Se encontraron ", num_papers, " publicaciones relacionadas con '", query,
       "', cubriendo diversos enfoques metodológicos en el área de investigación. "
     )
   }

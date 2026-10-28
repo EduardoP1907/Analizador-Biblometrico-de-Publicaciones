@@ -61,3 +61,12 @@ test_that("RF-09: el baseline solo encuentra coincidencias exactas", {
   expect_true("Genetic algorithms for the knapsack problem" %in% busqueda_baseline("knapsack", d))
   expect_length(busqueda_baseline("knapsak", d), 0)
 })
+
+test_that("RF-11: la síntesis identifica áreas y conceptos frecuentes de los resultados", {
+  d <- corpus_prueba()
+  a <- analizar_papers_estructurado(d, "neural networks")
+  expect_true(length(a$areas_principales) > 0)
+  s <- sintetizar_desde_abstracts(d)
+  expect_match(s$parrafo_tematico, "^El análisis de los resúmenes de las 5 publicaciones encontradas")
+  expect_match(s$parrafo_tematico, "neural|network|algorithm")
+})

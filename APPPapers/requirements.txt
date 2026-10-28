@@ -1,0 +1,9 @@
+# Entorno de Python del módulo de embeddings (probado con Python 3.13.2)
+# Instalación:  python -m pip install -r requirements.txt
+# Luego indicar a R qué intérprete usar con la variable de entorno
+# APPPAPERS_PYTHON (por ejemplo en APPPapers/.Renviron, ver README de instalación).
+sentence-transformers==5.5.0
+transformers==5.8.1
+torch==2.12.0
+numpy==2.3.4
+pandas==2.3.3

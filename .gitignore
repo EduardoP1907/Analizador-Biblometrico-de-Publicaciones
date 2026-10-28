@@ -18,3 +18,6 @@ __pycache__/
 APPPapers/INFORME_TESIS_*.pdf
 APPPapers/Informe Revisado*
 APPPapers/Gu*a para el formato*.pdf
+
+# Configuración local (ruta del intérprete de Python)
+.Renviron

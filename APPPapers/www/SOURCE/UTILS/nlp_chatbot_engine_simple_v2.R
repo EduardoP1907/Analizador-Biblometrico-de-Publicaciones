@@ -30,7 +30,7 @@ proceso_nlp_chatbot_simple <- function(query, data, openai_key = NULL) {
     terminos <- extraer_terminos_basicos(query)
     return(list(
       success = TRUE,
-      resumen_generado = paste("No se encontraron papers relacionados con '", query, "'. Intente con términos diferentes."),
+      resumen_generado = paste("No se encontraron publicaciones relacionadas con '", query, "'. Intente con términos diferentes."),
       num_papers = 0,
       papers = data.frame(),
       terminos_busqueda = terminos
@@ -87,7 +87,7 @@ buscar_papers_robusto <- function(query, data) {
       papers_encontrados <- busqueda_general(query_limpio, data)
     }
     
-    cat(paste("Papers encontrados:", nrow(papers_encontrados), "\n"))
+    cat(paste("Publicaciones encontradas:", nrow(papers_encontrados), "\n"))
     return(papers_encontrados)
     
   }, error = function(e) {
@@ -382,7 +382,7 @@ generar_resumen_desde_abstracts <- function(query, papers) {
   num_papers <- nrow(papers)
   
   if(num_papers == 0) {
-    return(paste("No se encontraron papers relacionados con '", query, "'."))
+    return(paste("No se encontraron publicaciones relacionadas con '", query, "'."))
   }
   
   cat(paste("Generando resumen desde", num_papers, "abstracts...\n"))

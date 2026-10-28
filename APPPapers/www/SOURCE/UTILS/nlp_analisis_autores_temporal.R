@@ -466,7 +466,7 @@ generar_resumen_productividad_temporal <- function(productividad_por_ventana, au
 
   resumen <- paste0(
     "👥 ANÁLISIS DE PRODUCTIVIDAD TEMPORAL COMPLETADO: ",
-    num_ventanas, " ventanas analizadas con ", total_papers, " papers de ", total_autores_unicos, " autores únicos. "
+    num_ventanas, " ventanas analizadas con ", total_papers, " publicaciones de ", total_autores_unicos, " autores únicos. "
   )
 
   # Información sobre consistencia
@@ -480,7 +480,7 @@ generar_resumen_productividad_temporal <- function(productividad_por_ventana, au
       mejor_autor <- autores_consistentes$autores_consistentes[[1]]
       resumen <- paste0(
         resumen,
-        "Autor más consistente: ", mejor_autor$autor, " (", mejor_autor$total_papers, " papers en ",
+        "Autor más consistente: ", mejor_autor$autor, " (", mejor_autor$total_papers, " publicaciones en ",
         mejor_autor$ventanas_activo, " ventanas)."
       )
     }

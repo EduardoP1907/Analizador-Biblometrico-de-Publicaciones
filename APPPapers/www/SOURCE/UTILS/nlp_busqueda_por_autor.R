@@ -166,6 +166,24 @@ extraer_filtro_anos <- function(query) {
                 query_sin_anos = trimws(gsub("\\s+", " ", q_limpia))))
   }
 
+  # Rango abierto: "desde 2020", "a partir de 2020", "since 2020" (hasta el año
+  # actual) o "hasta 2015", "antes de 2015", "until 2015" (desde 1900)
+  patron_desde <- "(?:desde(?:\\s+el)?(?:\\s+a[ñn]o)?|a\\s+partir\\s+del?(?:\\s+a[ñn]o)?|despu[eé]s\\s+del?|since|after|from)\\s+(\\d{4})(?:\\s+en\\s+adelante)?"
+  patron_hasta <- "(?:hasta(?:\\s+el)?(?:\\s+a[ñn]o)?|antes\\s+del?|until|before)\\s+(\\d{4})"
+  for (p in list(list(patron = patron_desde, desde = TRUE), list(patron = patron_hasta, desde = FALSE))) {
+    m_ab <- regmatches(q, regexpr(p$patron, q, perl = TRUE, ignore.case = TRUE))
+    if (length(m_ab) > 0 && nchar(m_ab) > 0) {
+      ano <- as.integer(regmatches(m_ab, regexpr("\\d{4}", m_ab)))
+      if (ano >= 1990 && ano <= 2030) {
+        q_limpia <- gsub(p$patron, "", q, perl = TRUE, ignore.case = TRUE)
+        return(list(tiene = TRUE,
+                    desde = if (p$desde) ano else 1900L,
+                    hasta = if (p$desde) as.integer(format(Sys.Date(), "%Y")) else ano,
+                    query_sin_anos = trimws(gsub("\\s+", " ", q_limpia))))
+      }
+    }
+  }
+
   # Año único: "en 2022", "del año 2021", "de 2020", "year 2019", "2023"
   patron_unico <- "(?:en|del?\\s+año|del?|from|year|in|año)\\s*(\\d{4})|\\b(\\d{4})\\b"
   m3 <- regmatches(q, regexpr(patron_unico, q, perl = TRUE, ignore.case = TRUE))
@@ -278,7 +296,11 @@ parsear_filtros_query <- function(query) {
                         "exclusivamente","solamente","unicamente","solo","only",
                         "exclusively","solely")
   tokens_tema <- unlist(strsplit(tolower(q_tema), "\\s+"))
-  tokens_tema <- tokens_tema[nchar(tokens_tema) >= 3 & !tokens_tema %in% stop_instruccion]
+  # Se descartan los tokens de menos de 3 caracteres, salvo las siglas del
+  # diccionario de sinónimos ("ml", "ia")
+  siglas <- if (exists("siglas_diccionario", mode = "function")) siglas_diccionario() else character(0)
+  tokens_tema <- tokens_tema[(nchar(tokens_tema) >= 3 | tokens_tema %in% siglas) &
+                               !tokens_tema %in% stop_instruccion]
   terminos_tema <- paste(unique(tokens_tema), collapse = " ")
 
   cat(paste0("📋 [INTENT] autor=", if(filtro_autor$tiene) filtro_autor$nombre else "—",

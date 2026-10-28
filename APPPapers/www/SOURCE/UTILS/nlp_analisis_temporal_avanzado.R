@@ -172,11 +172,11 @@ generar_resumen_tendencia <- function(tipo_tendencia, pendiente, conteo_df) {
   total_papers <- sum(conteo_df$papers)
 
   resumen <- switch(tipo_tendencia,
-    "creciente" = paste0("📈 TENDENCIA CRECIENTE: La investigación en esta área muestra un crecimiento sostenido durante ", anos_rango, " con un incremento promedio de ", abs(round(pendiente, 1)), " papers por año. Total analizado: ", total_papers, " papers."),
+    "creciente" = paste0("📈 TENDENCIA CRECIENTE: La investigación en esta área muestra un crecimiento sostenido durante ", anos_rango, " con un incremento promedio de ", abs(round(pendiente, 1)), " publicaciones por año. Total analizado: ", total_papers, " publicaciones."),
 
-    "decreciente" = paste0("📉 TENDENCIA DECRECIENTE: La investigación en esta área muestra una disminución durante ", anos_rango, " con una reducción promedio de ", abs(round(pendiente, 1)), " papers por año. Total analizado: ", total_papers, " papers."),
+    "decreciente" = paste0("📉 TENDENCIA DECRECIENTE: La investigación en esta área muestra una disminución durante ", anos_rango, " con una reducción promedio de ", abs(round(pendiente, 1)), " publicaciones por año. Total analizado: ", total_papers, " publicaciones."),
 
-    "estable" = paste0("📊 TENDENCIA ESTABLE: La investigación en esta área se mantiene relativamente constante durante ", anos_rango, ". Total analizado: ", total_papers, " papers.")
+    "estable" = paste0("📊 TENDENCIA ESTABLE: La investigación en esta área se mantiene relativamente constante durante ", anos_rango, ". Total analizado: ", total_papers, " publicaciones.")
   )
 
   return(resumen)
@@ -344,7 +344,7 @@ generar_resumen_evolucion <- function(evolucion_resultados, cambios_temas) {
   resumen <- paste0(
     "🔄 EVOLUCIÓN TEMÁTICA DETECTADA: ",
     "Análisis de ", num_periodos, " períodos durante ", periodo_total, ". ",
-    "Total de ", total_papers, " papers analizados. "
+    "Total de ", total_papers, " publicaciones analizadas. "
   )
 
   # Información sobre cambios

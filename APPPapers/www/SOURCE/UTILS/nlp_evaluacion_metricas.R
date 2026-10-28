@@ -282,7 +282,9 @@ busqueda_hibrida_eval <- function(query, data) {
     stop("Motor semántico no cargado (nlp_chatbot_engine_semantic.R)")
   }
   filtros   <- parsear_filtros_query(query)
-  q_tema    <- if (nchar(trimws(filtros$terminos_tema)) >= 3) filtros$terminos_tema else query
+  # Igual que la app: el filtro de años se aplica antes de buscar
+  if (filtros$anos$tiene) data <- aplicar_filtro_anos(data, filtros$anos)
+  q_tema    <- if (nchar(trimws(filtros$terminos_tema)) >= 2) filtros$terminos_tema else query
   expansion <- expandir_consulta_semantica(q_tema)
   papers    <- buscar_papers_hibrido(q_tema, data, expansion)
   if (nrow(papers) == 0) return(character(0))
@@ -293,11 +295,6 @@ busqueda_hibrida_eval <- function(query, data) {
 
 generar_tabla_evaluacion_html <- function(evaluacion) {
   resumen <- evaluacion$resumen
-
-  f1_base <- resumen$f1_macro[resumen$sistema == SISTEMA_BASELINE]
-  f1_hib  <- resumen$f1_macro[resumen$sistema == SISTEMA_HIBRIDO]
-  mejora  <- if (length(f1_base) > 0 && f1_base > 0)
-    round((f1_hib - f1_base) / f1_base * 100, 1) else 0
 
   tagList(
     tags$h5(sprintf("📊 Resumen de evaluación — %d consultas", max(resumen$n_queries)),
@@ -331,14 +328,12 @@ generar_tabla_evaluacion_html <- function(evaluacion) {
 
     tags$div(
       style = "background:#fff9c4; border:1px solid #f9a825; border-radius:6px; padding:12px; margin-bottom:20px;",
-      tags$strong(
-        sprintf("Variación del F1-Score del sistema híbrido respecto del baseline: %+.1f%%", mejora)
-      ),
-      tags$br(),
       tags$small(
         style = "color:#666;",
-        "Evaluación macro-promediada sobre las consultas del ground truth (www/BD/ground_truth_evaluacion.csv). ",
-        "La búsqueda difusa se reporta como componente aislado, sin tope de resultados."
+        "Promedio macro sobre las consultas del ground truth (www/BD/ground_truth_evaluacion.csv). ",
+        "El sistema híbrido muestra como máximo 20 publicaciones; el baseline y la búsqueda difusa ",
+        "devuelven listas completas sin orden, por lo que las precisiones no son directamente comparables. ",
+        "Los juicios de relevancia se hicieron con un modelo de lenguaje y se contrastaron con dos evaluadores en una muestra (ver Sección 6.2 de la memoria)."
       )
     )
   )

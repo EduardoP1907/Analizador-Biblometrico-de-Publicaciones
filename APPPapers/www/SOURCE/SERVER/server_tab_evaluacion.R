@@ -76,8 +76,11 @@ server_tab_evaluacion <- function(input, output, session, data) {
     p_nlp   <- resumen$precision_macro[resumen$sistema == SISTEMA_HIBRIDO]
     r_base  <- resumen$recall_macro[resumen$sistema == SISTEMA_BASELINE]
     r_nlp   <- resumen$recall_macro[resumen$sistema == SISTEMA_HIBRIDO]
-    mejora  <- if (length(f1_base) > 0 && f1_base > 0)
-      round((f1_nlp - f1_base) / f1_base * 100, 1) else 0
+    det     <- evaluacion$detalle
+    f1_q_b  <- det$f1[det$sistema == SISTEMA_BASELINE]
+    f1_q_h  <- det$f1[det$sistema == SISTEMA_HIBRIDO][match(det$query[det$sistema == SISTEMA_BASELINE],
+                                                            det$query[det$sistema == SISTEMA_HIBRIDO])]
+    gana    <- sum(f1_q_h > f1_q_b)
 
     output$kpi_f1_baseline <- renderUI({
       div(
@@ -111,21 +114,20 @@ server_tab_evaluacion <- function(input, output, session, data) {
       )
     })
 
-    color_mejora <- if (mejora > 0) "#e65100" else "#555"
-    icono_mejora <- if (mejora > 0) "fa-arrow-up" else "fa-minus"
-
+    # Diferencia absoluta y conteo por consulta (sin porcentajes de mejora:
+    # ver la interpretación y el análisis estadístico en la Sección 6.2)
     output$kpi_mejora <- renderUI({
       div(
-        style = "background: #fff3e0; border-radius: 10px; padding: 20px; text-align: center; border-left: 5px solid #e65100;",
-        tags$i(class = paste("fas", icono_mejora, "fa-2x"), style = paste0("color: ", color_mejora, "; margin-bottom: 10px;")),
-        h5("Mejora F1-Score", style = "color: #e65100; margin: 5px 0;"),
+        style = "background: #f5f5f5; border-radius: 10px; padding: 20px; text-align: center; border-left: 5px solid #616161;",
+        tags$i(class = "fas fa-balance-scale fa-2x", style = "color: #616161; margin-bottom: 10px;"),
+        h5("Comparación por consulta", style = "color: #424242; margin: 5px 0;"),
         tags$p(
-          style = paste0("font-size: 28px; font-weight: bold; color: ", color_mejora, "; margin: 5px 0;"),
-          sprintf("%+.1f%%", mejora)
+          style = "font-size: 28px; font-weight: bold; color: #424242; margin: 5px 0;",
+          sprintf("%d de %d", gana, length(f1_q_b))
         ),
         tags$small(
           style = "color: #555;",
-          "Híbrido vs Baseline (macro)"
+          sprintf("consultas con mayor F1 que el baseline (diferencia media: %+.3f)", f1_nlp - f1_base)
         )
       )
     })
