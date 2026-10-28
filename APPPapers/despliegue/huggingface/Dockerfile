@@ -7,21 +7,24 @@ FROM rocker/r-ver:4.5.1
 
 # Bibliotecas del sistema que necesitan los paquetes de R y Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv python3-pip \
+        python3 python3-venv python3-pip python3-dev \
         libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libicu-dev \
         libfontconfig1-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev \
-        libpng-dev libjpeg-dev libtiff5-dev zlib1g-dev git \
+        libpng-dev libjpeg-dev libtiff5-dev libcairo2-dev zlib1g-dev git \
     && rm -rf /var/lib/apt/lists/*
 
-# Paquetes de R (lista de entorno_R.R, sin los de pruebas)
+# Paquetes de R (lista de entorno_R.R, sin los de pruebas). hrbrthemes salió de CRAN:
+# se instala la versión archivada; ggsankey solo está en GitHub.
 RUN install2.r --error --skipinstalled --ncpus -1 \
-        dplyr DT ggforce ggplot2 ggthemes ggwordcloud hrbrthemes htmlwidgets \
+        dplyr DT ggforce ggplot2 ggthemes ggwordcloud htmlwidgets \
         igraph networkD3 plotly pracma randomForest readr RColorBrewer shiny \
         shinyBS shinybusy shinyalert shinyjs shinyWidgets stringr tibble tidyr \
         tidyverse tm threejs visNetwork viridis wordcloud wordcloud2 writexl \
         shinyFeedback fontawesome stringi stringdist textrank markdown \
-        reticulate httr jsonlite lexRankr shinycssloaders htmltools remotes \
+        reticulate httr jsonlite lexRankr shinycssloaders htmltools remotes extrafont gdtools \
+    && R -q -e 'remotes::install_version("hrbrthemes", "0.8.7", upgrade = "never")' \
     && R -q -e 'remotes::install_github("davidsjoberg/ggsankey", upgrade = "never")' \
+    && R -q -e 'stopifnot(requireNamespace("hrbrthemes"), requireNamespace("ggsankey"))' \
     && rm -rf /tmp/downloaded_packages
 
 # Python: entorno virtual con torch para CPU (evita las dependencias de CUDA)
